@@ -1,0 +1,4 @@
+{
+  "_comment": "Mapping devname -> environment (mis. DCI / NTT / GCP). SENGAJA KOSONG: kolom devname di data IPS hanya berisi kode device dan tidak menyatakan environment, jadi sistem tidak menebak. Isi lewat UI (tab Upload) atau edit file ini, contoh: {\"P1FWX0209\": \"DCI\"}.",
+  "map": {}
+}

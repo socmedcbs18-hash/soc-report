@@ -1,0 +1,31 @@
+{
+  "_comment": "Alias nama kolom raw -> canonical field. Pencocokan EXACT (setelah normalisasi huruf kecil, spasi/strip jadi underscore). Alias yang mirip tapi tidak persis hanya ditawarkan sebagai SARAN di UI, TIDAK dipakai otomatis. Tambah alias baru di sini tanpa mengubah kode.",
+  "IPS": {
+    "status": "implemented",
+    "required": ["attack_name", "severity", "src_ip"],
+    "recommended": ["dst_ip", "src_country", "count", "action", "device"],
+    "aliases": {
+      "device": ["devname", "device", "device_name", "firewall", "hostname"],
+      "vd": ["vd", "vdom", "virtual_domain"],
+      "action": ["action", "disposition"],
+      "attack_name": ["attack", "attack_name", "attackname", "signature", "threat", "msg"],
+      "src_ip": ["srcip", "src_ip", "source_ip", "source_address", "client_ip", "sourceip", "src"],
+      "dst_ip": ["dstip", "dst_ip", "destination_ip", "destination_address", "dest_ip", "destinationip", "dst"],
+      "src_country": ["srccountry", "src_country", "source_country"],
+      "severity": ["severity", "sev", "risk_level"],
+      "count": ["count", "event_count", "events", "hits"],
+      "timestamp": ["timestamp", "time", "_time", "eventtime", "datetime", "date"]
+    }
+  },
+  "DLP": {
+    "status": "planned",
+    "aliases": {"username": ["user", "username"], "rule_name": ["policy"], "action": ["action"],
+                "category": ["channel"], "count": ["match_count"], "timestamp": ["timestamp"]}
+  },
+  "EDR": {
+    "status": "planned",
+    "aliases": {"hostname": ["hostname"], "username": ["username"], "attack_name": ["detection"],
+                "severity": ["severity"], "action": ["action"], "category": ["malware"],
+                "description": ["hash"], "timestamp": ["timestamp"]}
+  }
+}

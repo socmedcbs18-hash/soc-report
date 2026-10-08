@@ -1,0 +1,84 @@
+{
+  "top_n": 5,
+  "tolerance_pct": 0.01,
+  "number_locale": "id",
+  "ips": {
+    "allowed_actions": [
+      "dropped",
+      "blocked",
+      "denied",
+      "drop",
+      "block",
+      "deny",
+      "reset"
+    ],
+    "known_actions": [
+      "dropped",
+      "blocked",
+      "denied",
+      "drop",
+      "block",
+      "deny",
+      "reset",
+      "passthrough",
+      "detected",
+      "monitored",
+      "allowed",
+      "pass",
+      "alert",
+      "accept"
+    ],
+    "valid_severities": [
+      "critical",
+      "high",
+      "medium",
+      "low",
+      "info",
+      "informational"
+    ],
+    "category_dominance_threshold_pct": 50.0,
+    "ip_concentration_threshold_pct": 10.0,
+    "split_by": "device"
+  },
+  "invalid_country_values": [
+    "",
+    "unknown",
+    "n/a",
+    "none",
+    "-",
+    "nan",
+    "null"
+  ],
+  "mom": {
+    "stable_threshold_pct": 5.0
+  },
+  "reputation": {
+    "strategy": "failover",
+    "provider_order": [
+      "virustotal",
+      "abuseipdb"
+    ],
+    "max_retry_after_seconds": 120,
+    "cache_ttl_hours": 168,
+    "max_ips_default": 50,
+    "timeout_seconds": 15,
+    "max_retries": 3,
+    "backoff_base_seconds": 2.0,
+    "providers": {
+      "virustotal": {
+        "enabled": true,
+        "requests_per_minute": 4
+      },
+      "abuseipdb": {
+        "enabled": true,
+        "requests_per_minute": 30
+      }
+    }
+  },
+  "severity_descriptions": {
+    "Critical": "Serangan paling berbahaya, bisa langsung ambil alih sistem kalau berhasil",
+    "High": "Serangan serius, bisa langsung berbahaya kalau sistem ada celah",
+    "Medium": "Serangan yang bisa berbahaya, tapi hanya dalam kondisi tertentu",
+    "Low": "Serangan ringan, biasanya cuma percobaan atau scanning, dampaknya kecil."
+  }
+}

@@ -1,0 +1,17 @@
+# Data & hasil (tidak boleh masuk repo)
+database/
+input/*
+!input/.gitkeep
+output/
+# Secret
+.env
+*.env
+!.env.example
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+# OS/editor
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+  "_comment": "Reference data: IP internal -> nama aset, dipakai di tabel Dest ('IP - nama aset'). DISEED dari 4 baris tabel Dest pada deck contoh yang Anda upload (bukan dari raw data IPS). Mohon diverifikasi, ditambah, atau dikoreksi. IP yang tidak ada di sini tampil sebagai IP saja.",
+  "assets": {
+    "10.138.137.22": "private.altoconnect.id",
+    "10.138.137.17": "altodashboard",
+    "10.138.137.99": "fortiems",
+    "10.138.137.12": "web-secure-altopay.id"
+  }
+}

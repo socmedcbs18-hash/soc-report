@@ -1,0 +1,21 @@
+{
+  "_comment": "Kamus interpretasi signature IPS (reference knowledge, BUKAN hasil perhitungan data). Pencocokan regex pada nama attack. Signature yang tidak cocok TIDAK diberi interpretasi apa pun (kategori 'Uncategorized'). Redaksi sengaja hati-hati: menyatakan indikasi, bukan fakta compromise.",
+  "rules": [
+    {"pattern": "DoublePulsar", "category": "Exploit", "note": "signature backdoor yang berasosiasi dengan eksploitasi kerentanan SMB (rantai EternalBlue) untuk akses remote"},
+    {"pattern": "Java\\.Debug\\.Wire", "category": "Exploit", "note": "berpotensi dieksploitasi bila mode debug Java (JDWP) terbuka ke publik"},
+    {"pattern": "Bladabindi", "category": "Botnet/Malware", "note": "malware jenis RAT/backdoor yang memungkinkan kendali jarak jauh"},
+    {"pattern": "Gh0st", "category": "Botnet/Malware", "note": "malware RAT yang memungkinkan kendali jarak jauh"},
+    {"pattern": "Mirai", "category": "Botnet/Malware", "note": "botnet yang menyasar perangkat IoT/jaringan"},
+    {"pattern": "PTZOptics", "category": "Exploit", "note": "percobaan bypass autentikasi pada perangkat kamera/IoT"},
+    {"pattern": "DZS\\.GPON", "category": "Exploit", "note": "percobaan remote code execution pada perangkat jaringan GPON"},
+    {"pattern": "F5\\.BIG-IP", "category": "Exploit", "note": "percobaan bypass autentikasi iControl REST pada appliance F5 BIG-IP"},
+    {"pattern": "Zyxel", "category": "Exploit", "note": "percobaan command injection pada perangkat jaringan Zyxel"},
+    {"pattern": "React\\.Server\\.Components", "category": "Exploit", "note": "percobaan remote code execution pada aplikasi web berbasis React Server Components"},
+    {"pattern": "Path\\.Traversal", "category": "Web Attack", "note": "percobaan akses file di luar direktori yang diizinkan (path traversal)"},
+    {"pattern": "Spring\\.Boot\\.Actuator", "category": "Web Attack", "note": "percobaan akses tidak sah ke endpoint actuator aplikasi Spring Boot"},
+    {"pattern": "Expect\\.Header\\.XSS", "category": "Web Attack", "note": "percobaan cross-site scripting melalui header HTTP"},
+    {"pattern": "SMB\\.Server\\.Trans\\.Peeking", "category": "Exploit", "note": "percobaan information disclosure pada layanan SMB"},
+    {"pattern": "TCP\\.SACK\\.Panic", "category": "DoS", "note": "percobaan denial-of-service pada kernel Linux (SACK Panic)"},
+    {"pattern": "Nmap|Masscan|ZGrab|Censys|Shodan", "category": "Reconnaissance", "note": "aktivitas scanning/pemetaan layanan yang terekspos ke internet"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Internal Normalized Threat Score",
+  "disclaimer": "Skor internal hasil normalisasi data provider. BUKAN skor resmi vendor manapun.",
+  "weights": {"vt_malicious": 0.40, "abuse_confidence": 0.35, "abuse_reports": 0.10, "recency": 0.15},
+  "vt": {"malicious_saturation_engines": 10, "suspicious_weight": 0.5},
+  "abuse": {"reports_saturation": 20},
+  "recency_days": [[7, 1.0], [30, 0.5], [90, 0.25]],
+  "bands": [[0, 19, "Low"], [20, 39, "Guarded"], [40, 59, "Medium"], [60, 79, "High"], [80, 100, "Critical"]]
+}

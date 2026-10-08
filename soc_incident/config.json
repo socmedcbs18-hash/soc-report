@@ -1,0 +1,7 @@
+{
+ "_comment": "Pengaturan modul SOC Incident Report. Ubah tanpa mengubah kode.",
+ "system_customer_patterns": ["splunk"],
+ "cutover_detection": {"min_tail_tickets": 20, "min_tail_share": 0.05, "marker_fields": ["product_type", "sub_issue"]},
+ "insight_thresholds": {"share_shift_pp": 30, "breach_ratio": 2.0, "breach_min_diff_pp": 2.0, "coverage_drop_pp": 20, "owner_ratio": 2.0, "cutover_window_hours": 24},
+ "priority_labels": {"0": "P0 (Critical)", "1": "P1 (High)", "2": "P2 (Medium)", "3": "P3 (Low)"}
+}

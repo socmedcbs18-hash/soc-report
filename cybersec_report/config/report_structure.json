@@ -1,0 +1,268 @@
+{
+  "_comment": "Struktur report. Ubah urutan/aktif-nonaktif section tanpa mengubah kode. Section 'implemented:false' belum dibangun dan TIDAK akan dihasilkan (tidak ada data karangan). 'menu':true = tampil di menu; 'status':'waiting_data' = halaman contoh dari deck referensi (bukan data upload).",
+  "sections": [
+    {
+      "id": "ips",
+      "title": "Intrusion Prevention System",
+      "source": "IPS",
+      "implemented": true,
+      "enabled": true,
+      "split_by": "environment",
+      "slides": [
+        "data",
+        "analysis",
+        "source_ip"
+      ],
+      "title_pattern": "(IPS) Firewall {env} – {month} {year}",
+      "purpose": "Serangan langsung (layer network & transport) dari public ke produk ALTO yang berhasil diblokir oleh fitur IPS firewall.",
+      "menu": true,
+      "status": "ready",
+      "sample_slides": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "id": "akamai",
+      "title": "Akamai WAF / Anti-DDoS / Anti-BOT",
+      "source": "AKAMAI",
+      "implemented": true,
+      "enabled": true,
+      "phase": 2,
+      "menu": true,
+      "status": "available",
+      "sample_slides": [
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "deck_reports": [
+        "Total hits per jenis serangan: Bad Reputation, WAF, BOT, DoS (+ By%)",
+        "Top 5 WAF attack dan BOT type, per Country dan per Dest (hostname)",
+        "Kategori Bad Reputation (Web Attackers, DoS Attackers, Web Scrapers, Scanning Tools)",
+        "DoS: Network Control vs Rate Control",
+        "Kesimpulan, implikasi, rekomendasi, dan tindakan; pembanding Akamai WAF (cloud) vs F5 WAF (on-prem)"
+      ],
+      "needs_raw": [
+        "Export event Akamai: tipe/kategori serangan, jumlah hit, negara sumber, host tujuan, action, timestamp"
+      ]
+    },
+    {
+      "id": "dlp",
+      "title": "Data Loss Prevention",
+      "source": "DLP",
+      "implemented": false,
+      "enabled": false,
+      "phase": 3,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        18,
+        19
+      ],
+      "deck_reports": [
+        "Jumlah proses dan data match terhadap kebijakan DLP; Audit & Notify vs Blocked",
+        "Top 5 policy DLP; tipe policy CHDE vs Non-CHDE",
+        "Top 5 user pada Audit Notify",
+        "Kesimpulan, implikasi, rekomendasi tindakan"
+      ],
+      "needs_raw": [
+        "Export insiden DLP: policy, user, action (audit/notify/blocked), jumlah match, timestamp"
+      ]
+    },
+    {
+      "id": "edr",
+      "title": "Antimalware & EDR",
+      "source": "EDR",
+      "implemented": false,
+      "enabled": false,
+      "phase": 4,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        34,
+        35
+      ],
+      "deck_reports": [
+        "Jumlah alert per severity (Critical/High/Medium)",
+        "Nama insiden per severity (Top + By%) dan Top user",
+        "Sample log alert dan penjelasan jenis insiden (mis. USB, unauthorized file operation, port scanning)",
+        "Kesimpulan, implikasi, rekomendasi tindakan"
+      ],
+      "needs_raw": [
+        "Export alert EDR: nama insiden, severity, user/host, timestamp, status (data Cynet dapat dipakai bila formatnya sama)"
+      ]
+    },
+    {
+      "id": "cspm",
+      "title": "Cloud Security Posture Management",
+      "source": "CSPM",
+      "implemented": false,
+      "enabled": false,
+      "phase": 5,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "deck_reports": [
+        "Compliance score PCI DSS per cloud platform (GCP, AWS, HWC)",
+        "Distribusi resource per platform dan resource non-compliant per severity",
+        "Top 10 insight findings per cloud (AWS & GCP, HWC)",
+        "Klasifikasi severity CSPM Rapid7"
+      ],
+      "needs_raw": [
+        "Export CSPM (Rapid7): cloud account/platform, resource, insight name, severity, status, compliance"
+      ]
+    },
+    {
+      "id": "vuln",
+      "title": "Vulnerability Assessment",
+      "source": "VULN",
+      "implemented": false,
+      "enabled": false,
+      "phase": 6,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        25,
+        26,
+        27,
+        28
+      ],
+      "deck_reports": [
+        "Status vulnerability dan Top 10 vulnerability per kuartal (laporan kuartalan, bukan bulanan)",
+        "Vulnerability per asset: follow-up remediasi Windows dan Linux",
+        "Vulnerability Assessment PCI DSS"
+      ],
+      "needs_raw": [
+        "Export hasil scan: asset, OS, nama temuan, severity, status, tanggal temuan/remediasi"
+      ]
+    },
+    {
+      "id": "siem",
+      "title": "SIEM Monitoring",
+      "source": "SIEM",
+      "implemented": false,
+      "enabled": false,
+      "phase": 7,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        4,
+        5
+      ],
+      "deck_reports": [
+        "Security event (insiden) per kategori yang dipantau SOC 24x7 (Application, DLP, dll.) dan sample detail aktivitas",
+        "Kesimpulan total event, status penanganan (Closed - Under SLA), pola ancaman dominan",
+        "Implikasi, rekomendasi prioritas"
+      ],
+      "needs_raw": [
+        "Data insiden/alert SOC (sumber yang sama dengan modul SOC Report: Splunk dan tiket Ivanti)"
+      ]
+    },
+    {
+      "id": "proxy",
+      "title": "Proxy",
+      "source": "PROXY",
+      "implemented": false,
+      "enabled": false,
+      "phase": 8,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        29,
+        30,
+        31
+      ],
+      "deck_reports": [
+        "Request per status (allowed/blocked) per proxy (DCI, NTT)",
+        "Detail aktivitas yang diblokir: source IP, source server, kategori, hasil, URL, jumlah request",
+        "Alasan kategori diblokir, kesimpulan, implikasi, rekomendasi tindakan"
+      ],
+      "needs_raw": [
+        "Log proxy: source IP/server, kategori URL, action, URL tujuan, jumlah request, timestamp"
+      ]
+    },
+    {
+      "id": "email",
+      "title": "Email Protection",
+      "source": "EMAIL",
+      "implemented": false,
+      "enabled": false,
+      "phase": 9,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        32,
+        33
+      ],
+      "deck_reports": [
+        "Jenis serangan email (Spam, Phishing, Malware) dan jumlahnya",
+        "Top 5 sender dan recipient untuk spam dan phishing",
+        "Penyebab email terblokir, kesimpulan, implikasi, rekomendasi (SPF, DKIM, DMARC)"
+      ],
+      "needs_raw": [
+        "Export email security: pengirim, penerima, tipe (spam/phishing/malware), action (quarantined), timestamp"
+      ]
+    },
+    {
+      "id": "sast_dast",
+      "title": "SAST & DAST",
+      "source": "SAST_DAST",
+      "implemented": false,
+      "enabled": false,
+      "phase": 9,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        36,
+        37,
+        38,
+        39
+      ],
+      "deck_reports": [
+        "Objek yang diperiksa (aplikasi/repository) dan definisi severity",
+        "Ringkasan temuan SAST (secure code review) dan DAST (ID, kerentanan, keadaan, risiko)",
+        "Kesimpulan per aplikasi dan lampiran bukti"
+      ],
+      "needs_raw": [
+        "Hasil pengujian per aplikasi (Rapid7 AppSec / secure code review); kemungkinan input manual atau file laporan, bukan log mentah"
+      ]
+    },
+    {
+      "id": "exec",
+      "title": "Executive Summary",
+      "source": "ALL",
+      "implemented": false,
+      "enabled": false,
+      "phase": 10,
+      "menu": true,
+      "status": "waiting_data",
+      "sample_slides": [
+        1,
+        2,
+        3
+      ],
+      "deck_reports": [
+        "Struktur deck: Apa, Berapa banyak kejadian, Kenapa, Bagaimana mengatasi dan agar tidak terulang",
+        "Operational: Security Event, DLP, Vulnerability Assessment, EDR compliance, SAST/DAST, Security Awareness",
+        "Strategic: Internal Project dan Support Business Project"
+      ],
+      "needs_raw": [
+        "Dibangun terakhir dari seluruh sumber di atas; tidak dikarang dari satu sumber saja"
+      ]
+    }
+  ]
+}
