@@ -131,6 +131,18 @@ def normalize_incident_columns(df):
     if dup_cols:
         df = df.drop(columns=dup_cols)
 
+    # Nama kolom MITRE/KillChain/Triage berbeda antar versi export Ivanti
+    # (lama: 'Incident MITRE'/'Incident KillChain'; export Sept 2026:
+    # 'IncidentMitre'/'IncidentKillChain'). Dicocokkan TANPA spasi/underscore/
+    # huruf besar-kecil, lalu dinamai ke bentuk kanonik yang dipakai pipeline.
+    # Hanya 3 nama ini yang di-alias - kolom lain TIDAK ditebak.
+    import re as _re
+    _alias = {"incidentmitre": "Incident MITRE", "incidentkillchain": "Incident KillChain", "triage": "Triage"}
+    for _c in list(df.columns):
+        _target = _alias.get(_re.sub(r"[^a-z0-9]", "", str(_c).lower()))
+        if _target and _c != _target and _target not in df.columns:
+            df = df.rename(columns={_c: _target})
+
     rename_map = {
         "Ticket Number": "Incident",
         "Active DateTime": "Responded On",  # konsep "mulai ditangani" = Active

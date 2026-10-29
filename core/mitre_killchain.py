@@ -43,6 +43,7 @@ MITRE_TACTIC_NAMES = {
     "TA0001": "Initial Access", "TA0002": "Execution", "TA0003": "Persistence",
     "TA0005": "Defense Evasion", "TA0006": "Credential Access",
     "TA0010": "Exfiltration", "TA0043": "Reconnaissance",
+    "TA0011": "Command and Control",   # ditemukan di data Sept 2026
 }
 
 MITRE_TECHNIQUE_NAMES = {
@@ -79,6 +80,14 @@ MITRE_TECHNIQUE_NAMES = {
     "T1578.003": "Modify Cloud Compute Infrastructure: Delete Cloud Instance",
     "T1586.003": "Compromise Accounts: Cloud Accounts",
     "T1621": "Multi-Factor Authentication Request Generation",
+    # Ditemukan di data Sept 2026; nama mengikuti penamaan resmi MITRE ATT&CK.
+    "T1059": "Command and Scripting Interpreter",
+    "T1071.001": "Application Layer Protocol: Web Protocols",
+    "T1090": "Proxy",
+    "T1201": "Password Policy Discovery",
+    "T1580": "Cloud Infrastructure Discovery",
+    "T1583.004": "Acquire Infrastructure: Server",
+    "T1089": "Disabling Security Tools (technique lama/deprecated di ATT&CK; kini di T1562.001)",
 }
 
 

@@ -2664,3 +2664,11 @@ Koreksi desain atas permintaan user: laporan insiden adalah bagian dari SOC Repo
 - Temuan pada file September 2026: tabel Negara sheet WAF Attack berjumlah 22.875 sedangkan baris Total 22.785 (selisih 90); ditandai sebagai peringatan, tidak dikoreksi otomatis.
 - Test: `tests/test_akamai.py` (16 test, data sintetis); stub UI sekarang menghormati `disabled=` pada tombol. Stub UI mendukung uploader bernama. Total cybersec_report 101 test lolos.
 - Belum ada: slide PowerPoint Akamai (dashboard + Excel saja).
+
+## 115. SOC Report: kolom MITRE/KillChain export Ivanti Sept 2026 terbaca ("IncidentMitre"/"IncidentKillChain")
+
+- Penyebab: export baru memakai header `IncidentMitre` dan `IncidentKillChain` (tanpa spasi), sedangkan kode hanya mengenali `Incident MITRE` / `Incident KillChain`; kolom dianggap tidak ada, sehingga Kill Chain/MITRE kosong.
+- `utils/helpers.py` `normalize_incident_columns`: alias tanpa-spasi/underscore/huruf-besar-kecil untuk `Incident MITRE`, `Incident KillChain`, `Triage` (hanya tiga nama ini; kolom lain tidak ditebak; kolom kanonik yang sudah ada tidak ditimpa).
+- `core/mitre_killchain.py`: nama resmi MITRE ditambahkan untuk kode baru di data Sept (T1059, T1071.001, T1090, T1201, T1580, T1583.004, T1089, TA0011).
+- Test baru: `core/tests/test_incident_columns.py` (4 test, data sintetis). Diuji juga pada `Raw_Data_September_SOC_2026.xlsx` (987 tiket): 457 tiket ber-Triage (176 TP, 281 FP), 351 tiket punya stage Kill Chain, 439 punya MITRE.
+- Belum diubah (menunggu keputusan user): stage "Command & Control" (14 tiket) masih dilaporkan sebagai nilai bermasalah di Data Quality karena bukan salah satu 7 stage yang terkonfirmasi sebelumnya.
