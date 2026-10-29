@@ -1930,7 +1930,7 @@ if current_page == "Threat Profiling":
         st.markdown("**⚠️ Data Quality - MITRE/KillChain**")
         st.warning(
             f"{len(dq)} tiket punya nilai yang TIDAK SESUAI format standar (bukan `[TXXXX]`/`[TAXXXX]` untuk "
-            "MITRE, atau bukan salah satu dari 7 stage Kill Chain yang dikenal) - kemungkinan salah input "
+            "MITRE, atau bukan salah satu dari 8 stage Kill Chain yang dikenal) - kemungkinan salah input "
             "manual di Ivanti. Perlu dicek/dibenarkan langsung di tiket terkait, TIDAK dihitung di chart di atas."
         )
         st.dataframe(dq, use_container_width=True)

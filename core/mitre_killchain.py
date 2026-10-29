@@ -15,11 +15,11 @@ Temuan kualitas data dari inspeksi tersebut (ditangani semua di bawah):
 - MITRE sering mencampur Tactic ID (TA####) dan Technique ID (T####)
   dalam 1 list yang sama, mis. '[TA0006,T1110,T1110.003]'
 
-7 stage Kill Chain yang TERKONFIRMASI dipakai organisasi ini (bukan
+8 stage Kill Chain yang TERKONFIRMASI dipakai organisasi ini (bukan
 standar Lockheed Martin klasik - versi mereka menyisipkan "Privilege
 Escalation" dari terminologi MITRE ATT&CK Tactic):
 Reconnaissance, Weaponization, Delivery, Exploitation, Installation,
-Privilege Escalation, Actions on Objectives.
+Privilege Escalation, Command & Control (ditambah Okt 2026), Actions on Objectives.
 """
 
 import re
@@ -32,8 +32,15 @@ _EMPTY_MARKERS = {"nan", "none", "null", "", "-", "--", "[]"}
 
 VALID_KILLCHAIN_STAGES = {
     "reconnaissance", "weaponization", "delivery", "exploitation",
-    "installation", "privilege escalation", "actions on objectives",
+    "installation", "privilege escalation", "command & control", "actions on objectives",
 }
+
+# Urutan logis stage (dipakai summary, funnel, drill-down). "Command & Control"
+# ditambahkan sebagai stage ke-8 atas konfirmasi user (Okt 2026; 14 tiket di data
+# Sept 2026) dan ditempatkan tepat sebelum "Actions On Objectives". Ubah URUTAN di
+# sini saja bila posisinya perlu digeser.
+KILLCHAIN_STAGE_ORDER = ["Reconnaissance", "Weaponization", "Delivery", "Exploitation",
+                         "Installation", "Privilege Escalation", "Command & Control", "Actions On Objectives"]
 
 # Nama resmi MITRE ATT&CK - dicek terhadap SEMUA 47 Technique & 7 Tactic
 # yang benar-benar ditemukan di data asli (Export_Data_SOC_1.xlsx). Kalau
@@ -137,7 +144,7 @@ def classify_mitre_tokens(tokens):
 
 
 def classify_killchain_tokens(tokens):
-    """Validasi token KillChain terhadap 7 stage yang terkonfirmasi dipakai
+    """Validasi token KillChain terhadap 8 stage yang terkonfirmasi dipakai
     organisasi ini. Token yang tidak cocok SAMA SEKALI (mis. MITRE ID yang
     kesasar masuk kolom ini) masuk kategori invalid - DITANDAI, bukan
     didiamkan atau dipaksa jadi stage yang salah."""
@@ -285,8 +292,7 @@ def build_killchain_summary(df):
     """Frekuensi tiap Kill Chain stage - untuk funnel/bar chart, diurutkan
     sesuai URUTAN LOGIS kill chain (bukan alfabetis atau by-count) supaya
     kelihatan progresi serangan yang sebenarnya."""
-    stage_order = ["Reconnaissance", "Weaponization", "Delivery", "Exploitation",
-                   "Installation", "Privilege Escalation", "Actions On Objectives"]
+    stage_order = KILLCHAIN_STAGE_ORDER
     all_stages = [s for row in df["_KillChain_Stages"] for s in row]
     counts = pd.Series(all_stages).value_counts() if all_stages else pd.Series(dtype=int)
     rows = [{"Stage": s, "Count": int(counts.get(s, 0))} for s in stage_order]
@@ -334,7 +340,7 @@ def generate_mitre_killchain_insights(technique_summary, tactic_summary, killcha
         kc_sorted = killchain_summary[killchain_summary["Count"] > 0].sort_values("Count", ascending=False)
         top_stage = kc_sorted.iloc[0]
         early_stages = {"Reconnaissance", "Weaponization", "Delivery"}
-        late_stages = {"Installation", "Privilege Escalation", "Actions On Objectives"}
+        late_stages = {"Installation", "Privilege Escalation", "Command & Control", "Actions On Objectives"}
 
         if top_stage["Stage"] in early_stages:
             interpretation = ("mayoritas terdeteksi di tahap AWAL serangan - kabar baik, deteksi terjadi "
@@ -358,7 +364,7 @@ def generate_mitre_killchain_insights(technique_summary, tactic_summary, killcha
             insights.append(
                 f"**Postur deteksi**: {early_pct}% insiden tercatat di tahap awal (Recon/Weaponization/"
                 f"Delivery) vs {round(100 - early_pct, 1)}% di tahap lanjut (Installation/Privilege "
-                f"Escalation/Actions on Objectives) - {'deteksi dini mendominasi' if early_pct >= 60 else 'porsi deteksi tahap lanjut cukup signifikan, cek apakah alerting tahap awal sudah optimal'}."
+                f"Escalation/Command & Control/Actions on Objectives) - {'deteksi dini mendominasi' if early_pct >= 60 else 'porsi deteksi tahap lanjut cukup signifikan, cek apakah alerting tahap awal sudah optimal'}."
             )
 
     return insights
@@ -505,8 +511,7 @@ def build_mitre_by_killchain_stage(df, stage_name):
 # BoD FEEDBACK #4: Kill Chain FUNNEL (menurun ke kanan, bukan raw count)
 # =========================================================
 
-_STAGE_ORDER = ["Reconnaissance", "Weaponization", "Delivery", "Exploitation",
-                "Installation", "Privilege Escalation", "Actions On Objectives"]
+_STAGE_ORDER = KILLCHAIN_STAGE_ORDER
 
 
 def build_killchain_funnel(df):

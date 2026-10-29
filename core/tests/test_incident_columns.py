@@ -39,6 +39,22 @@ class TestIncidentColumns(unittest.TestCase):
         df = normalize_incident_columns(f)
         self.assertEqual(df["Incident MITRE"].iloc[0], "[TA0006, T1110.001]")
 
+    def test_command_and_control_is_valid_stage_before_actions(self):
+        from core.mitre_killchain import (KILLCHAIN_STAGE_ORDER, build_data_quality_report, build_killchain_funnel,
+                                          build_killchain_summary)
+        f = _frame()
+        f["IncidentKillChain"] = ["[Command & Control]", "[command & control, Installation]", "[Actions on Objectives]"]
+        e = enrich_incident_mitre_killchain(normalize_incident_columns(f))
+        self.assertEqual(e["_KillChain_Stages"].tolist()[0], ["Command & Control"])
+        self.assertEqual(e["_KillChain_Invalid"].tolist(), [[], [], []])
+        self.assertEqual(KILLCHAIN_STAGE_ORDER[-2:], ["Command & Control", "Actions On Objectives"])
+        s = build_killchain_summary(e).set_index("Stage")["Count"]
+        self.assertEqual(int(s["Command & Control"]), 2)
+        self.assertEqual(list(build_killchain_summary(e)["Stage"]), KILLCHAIN_STAGE_ORDER)
+        fn = build_killchain_funnel(e).set_index("Stage")["Reached_At_Least"]
+        self.assertEqual(int(fn["Command & Control"]), 3)   # 2 tiket C2 + 1 tiket Actions (tahap lebih lanjut)
+        self.assertEqual(len(build_data_quality_report(e)), 0)
+
     def test_new_names_present(self):
         for t in ("T1059", "T1071.001", "T1090", "T1583.004", "T1580", "T1201"):
             self.assertIn(t, MITRE_TECHNIQUE_NAMES)
