@@ -229,3 +229,9 @@ AUTO_CREATE_CHART = True
 AUTO_COLORING = True
 
 AUTO_EXECUTIVE_SUMMARY = True
+
+# Rule berstatus 'Usulan - konfirmasi SPL singkat' (mis. AKR WebMoni Public IP -> Command & Control):
+# True  = label usulan ikut diterapkan ke tiket (ditandai 'usulan, belum dikonfirmasi SPL').
+# False = tiket tetap memakai label asli Ivanti sampai tim Splunk mengonfirmasi.
+# Perhatian: tahap Command & Control termasuk 'Exploitation ke atas' = Critical.
+TERAPKAN_LABEL_USULAN = True

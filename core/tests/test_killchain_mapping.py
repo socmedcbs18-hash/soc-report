@@ -138,3 +138,22 @@ class TestStateMachineDurations(unittest.TestCase):
         p.incident = self._inc()
         p._compute_incident_breach_flag()
         self.assertEqual(p.incident["_Breach"].tolist(), [False, True, False, False])
+
+
+class TestProposedLabels(unittest.TestCase):
+    NAME = "Infrastructure - [ALTO-ESV3] WebMoni - Public IP Traffic Detection - Rule"
+
+    def test_proposed_rule_label_applied_and_flagged(self):
+        import core.rule_mapping as rm
+        d = pd.DataFrame({"Summary": [self.NAME], "Incident MITRE": ["[]"], "Incident KillChain": ["[Delivery]"]})
+        old = rm._APPLY_PROPOSED
+        try:
+            rm._APPLY_PROPOSED = True
+            o = rm.apply_rule_mapping(d)
+            self.assertEqual(o.loc[0, "Incident KillChain"], "[Command & Control]")
+            self.assertEqual(o.loc[0, "_Label_Source"], rm.SRC_PROPOSED)
+            rm._APPLY_PROPOSED = False
+            o = rm.apply_rule_mapping(d)
+            self.assertEqual(o.loc[0, "Incident KillChain"], "[Delivery]")
+        finally:
+            rm._APPLY_PROPOSED = old

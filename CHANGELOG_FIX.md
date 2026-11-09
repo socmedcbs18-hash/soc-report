@@ -2705,3 +2705,10 @@ Sumber: MOM dengan manajemen (gap tiket vs alert; MTTD dihapus; matriks MTTR/MTT
 
 - Sebelumnya `read_any_table` membaca sheet PERTAMA saja, sehingga file Ivanti berisi Sept + Okt diam-diam hanya memproses September. `app.py` kini menampilkan pilihan sheet di sidebar bila file .xlsx insiden punya lebih dari satu sheet.
 - Mapping Kill Chain/MITRE otomatis dari `config/data/` (tidak perlu upload); yang wajib diupload tetap Master Rules, Alert Splunk, dan Insiden Ivanti.
+
+## 119. Label usulan ikut diterapkan ke tiket (opsi `TERAPKAN_LABEL_USULAN`)
+
+- `config/settings.py`: `TERAPKAN_LABEL_USULAN = True`. Rule Splunk berstatus "Usulan - konfirmasi SPL singkat" (AKR WebMoni Public IP -> Command & Control, AKR Repeated Denied Access -> Reconnaissance) kini memberi label ke tiketnya, ditandai `_Label_Source` = "mapping v2.2 (usulan, belum dikonfirmasi SPL)". Set False untuk kembali memakai label asli Ivanti sampai SPL dikonfirmasi.
+- Dampak: tahap Command & Control = Critical, sehingga tiket Kill Chain Critical Oktober naik dari 560 menjadi 680.
+- Rule berstatus "Perlu review SPL" (Check Point ESG Anomaly, Cynet Process Monitoring/Decoy, HSM Payshield, dll; 118 tiket Sept-Okt) tetap memakai label asli karena belum ada label rekomendasi.
+- Test baru `TestProposedLabels`.

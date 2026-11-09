@@ -27,6 +27,11 @@ import pandas as pd
 
 from utils.helpers import clean_rule_name
 
+try:
+    from config.settings import TERAPKAN_LABEL_USULAN as _APPLY_PROPOSED
+except Exception:  # pragma: no cover
+    _APPLY_PROPOSED = False
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "config" / "data"
 RULE_CSV = DATA_DIR / "rule_killchain_mitre.csv"
 PATTERN_JSON = DATA_DIR / "alert_nonsplunk_patterns.json"
@@ -45,6 +50,7 @@ NON_ATTACK = {"P", "O", "I", "R"}
 
 SRC_MAPPING = "mapping v2.2 (rule dikenal)"
 SRC_NONSPLUNK = "mapping v2.2 (alert non-Splunk, usulan)"
+SRC_PROPOSED = "mapping v2.2 (usulan, belum dikonfirmasi SPL)"
 SRC_TICKET_PENDING = "label tiket (rule menunggu review)"
 SRC_TICKET_UNKNOWN = "label tiket (rule tidak ada di mapping)"
 SRC_TEST = "tiket uji (dikeluarkan)"
@@ -140,13 +146,14 @@ def apply_rule_mapping(df, name_col="Summary", mitre_col="Incident MITRE", kc_co
         else:
             kode, conf, status, sev, rule = r["kode"], r["keyakinan"], r["status"], r["severity_rek"], r["rule"]
             test = kode == "T"
-            approved = status.startswith("Siap") or r["source"] == "nonsplunk"
+            proposed = _APPLY_PROPOSED and kode == "S" and status.startswith("Usulan")
+            approved = status.startswith("Siap") or r["source"] == "nonsplunk" or proposed
             if test:
                 src, m, k = SRC_TEST, "[]", "[]"
             elif kode == "U" or not approved:
                 src = SRC_TICKET_PENDING
             else:
-                src = SRC_MAPPING if r["source"] == "rule" else SRC_NONSPLUNK
+                src = SRC_PROPOSED if proposed else (SRC_MAPPING if r["source"] == "rule" else SRC_NONSPLUNK)
                 if kode == "S":
                     m, k = _fmt(r["mitre"]), _fmt(r["kc"])
                 else:
