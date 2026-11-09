@@ -646,6 +646,28 @@ class PPTXWriter:
             if ins:
                 self._insight_box(slide, ins, top=Inches(6.8))
 
+    def slide_sla_matrix(self):
+        """Matriks performa SOC (MOM): MTTR, MTTC, MTTRV per Priority dan per Severity - CSOC State Machine."""
+        cols = ["Jumlah_Tiket", "Avg_MTTR_menit", "Avg_MTTC_menit", "Median_MTTC_menit", "Tiket_Contained",
+                "Avg_MTTRV_menit", "Median_MTTRV_menit", "Jumlah_Breach", "%_Breach"]
+        for key, label, title in [("sla_metrics", "Priority_Label", "Matriks Performa SOC per Priority - MTTR, MTTC, MTTRV"),
+                                  ("sla_metrics_by_severity", "Severity", "Matriks Performa SOC per Severity - MTTR, MTTC, MTTRV")]:
+            df = self.report.get(key)
+            if df is None or len(df) == 0:
+                continue
+            show = df[[label] + [c for c in cols if c in df.columns]]
+            slide = self._new_slide()
+            self._add_title_bar(slide, title, self.period)
+            note = slide.shapes.add_textbox(Inches(0.6), Inches(1.05), Inches(12.1), Inches(0.5))
+            note.text_frame.word_wrap = True
+            pp = note.text_frame.paragraphs[0]
+            pp.text = ("MTTR = Created -> Active (SLA 5 menit). MTTC = Active -> Contained. MTTRV = Contained -> Resolved. "
+                       "MTTC/MTTRV hanya dari tiket yang punya timestamp Contained On (kolom Tiket_Contained). Satuan menit.")
+            pp.font.size = Pt(10)
+            pp.font.italic = True
+            pp.font.color.rgb = DARK_TEXT
+            self._add_table(slide, show, Inches(0.6), Inches(1.7), Inches(12.1), Inches(4.5), max_rows=10)
+
     def chapter_7_kpi_soc(self):
         kpi = self.report.get("soc_individual_kpi")
         if kpi is None or len(kpi) == 0:
@@ -662,7 +684,7 @@ class PPTXWriter:
         self._add_title_bar(slide2, "Seluruh Analyst SOC - MTTR, Breach Rate, Tiket Breach", self.period)
         note = slide2.shapes.add_textbox(Inches(0.6), Inches(1.05), Inches(12.1), Inches(0.4))
         p = note.text_frame.paragraphs[0]
-        p.text = "MTTR = Created On -> Responded On (waktu respons PERTAMA, bukan waktu penyelesaian)."
+        p.text = "MTTR = Created On -> Active (waktu respons PERTAMA, SLA 5 menit), bukan waktu penyelesaian."
         p.font.size = Pt(10)
         p.font.italic = True
         p.font.color.rgb = DARK_TEXT
@@ -684,6 +706,7 @@ class PPTXWriter:
         self.chapter_3_task()
         self.chapter_4_trend()
         self.chapter_5_efektivitas()
+        self.slide_sla_matrix()
         self.chapter_6_recurring()
         self.chapter_8_threat_profiling()
         self.chapter_7_kpi_soc()

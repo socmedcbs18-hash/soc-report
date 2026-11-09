@@ -48,7 +48,7 @@ KILLCHAIN_STAGE_ORDER = ["Reconnaissance", "Weaponization", "Delivery", "Exploit
 # ke "(nama tidak dikenal)" - TIDAK mengarang nama.
 MITRE_TACTIC_NAMES = {
     "TA0001": "Initial Access", "TA0002": "Execution", "TA0003": "Persistence",
-    "TA0005": "Defense Evasion", "TA0006": "Credential Access",
+    "TA0005": "Stealth (dulu Defense Evasion, ATT&CK v20)", "TA0006": "Credential Access",
     "TA0010": "Exfiltration", "TA0043": "Reconnaissance",
     "TA0011": "Command and Control",   # ditemukan di data Sept 2026
 }
@@ -103,11 +103,14 @@ def mitre_technique_label(code):
     ditampilkan (bukan disembunyikan), cuma nama-nya jujur '(nama tidak
     dikenal)' - supaya tidak mengarang nama technique yang belum kita punya."""
     name = MITRE_TECHNIQUE_NAMES.get(code.upper())
+    if not name:
+        info = validate_technique(code)
+        name = info["nama"] if info["status"] != "unknown" else None
     return f"{code} - {name}" if name else f"{code} (nama tidak dikenal)"
 
 
 def mitre_tactic_label(code):
-    name = MITRE_TACTIC_NAMES.get(code.upper())
+    name = MITRE_TACTIC_NAMES.get(code.upper()) or load_attack_ref()["tactics"].get(code.upper())
     return f"{code} - {name}" if name else f"{code} (nama tidak dikenal)"
 
 
@@ -542,3 +545,54 @@ def build_killchain_funnel(df):
         rows.append({"Stage": _STAGE_ORDER[i], "Reached_At_Least": running_total})
     rows.reverse()
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Validasi terhadap ATT&CK Enterprise v20.0 (config/data/attack_v20_ref.json)
+# ---------------------------------------------------------------------------
+import json as _json
+from functools import lru_cache as _lru_cache
+from pathlib import Path as _Path
+
+_ATTACK_REF_FILE = _Path(__file__).resolve().parent.parent / "config" / "data" / "attack_v20_ref.json"
+
+
+@_lru_cache(maxsize=1)
+def load_attack_ref():
+    """{'version', 'techniques': {id: [nama, status, pengganti?]}, 'tactics': {id: nama}}.
+    Sumber: repo resmi mitre-attack/attack-stix-data (enterprise-attack-20.0)."""
+    try:
+        with open(_ATTACK_REF_FILE, encoding="utf-8") as f:
+            return _json.load(f)
+    except (OSError, ValueError):
+        return {"version": "(referensi ATT&CK tidak ditemukan)", "techniques": {}, "tactics": {}}
+
+
+def validate_technique(code):
+    """Status 1 ID technique: ok | revoked | deprecated | unknown. Untuk revoked
+    disertakan ID pengganti resmi dari relasi 'revoked-by' MITRE (kalau ada)."""
+    entry = load_attack_ref()["techniques"].get(str(code).upper())
+    if not entry:
+        return {"status": "unknown", "nama": "", "pengganti": ""}
+    return {"status": entry[1], "nama": entry[0], "pengganti": entry[2] if len(entry) > 2 else ""}
+
+
+def build_mitre_validation_report(df, tech_col="_MITRE_Techniques"):
+    """Per technique ID: nama resmi v20, status (ok/revoked/deprecated/unknown), ID pengganti,
+    jumlah tiket yang memakainya. Menjawab 'apakah MITRE-nya sudah benar?'.
+    Catatan: status 'ok' hanya berarti ID-nya sah di ATT&CK v20, BUKAN bahwa teknik itu
+    cocok dengan perilaku alert - kecocokan dinilai lewat mapping per rule."""
+    if tech_col not in df.columns or len(df) == 0:
+        return pd.DataFrame(columns=["Technique", "Nama_v20", "Status", "Pengganti", "Jumlah_Tiket"])
+    counts = {}
+    for techs in df[tech_col]:
+        for t in set(techs):
+            counts[t] = counts.get(t, 0) + 1
+    rows = []
+    for t, n in counts.items():
+        v = validate_technique(t)
+        rows.append({"Technique": t, "Nama_v20": v["nama"] or "(tidak dikenal)", "Status": v["status"],
+                     "Pengganti": v["pengganti"], "Jumlah_Tiket": n})
+    out = pd.DataFrame(rows, columns=["Technique", "Nama_v20", "Status", "Pengganti", "Jumlah_Tiket"])
+    order = {"revoked": 0, "deprecated": 1, "unknown": 2, "ok": 3}
+    return out.sort_values(by=["Status", "Jumlah_Tiket"], key=lambda c: c.map(order) if c.name == "Status" else -c).reset_index(drop=True)

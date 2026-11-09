@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from config.settings import MASTER_RULE_FILE, DOMAIN_MAPPING_FILE
+from config.settings import MASTER_RULE_FILE, DOMAIN_MAPPING_FILE, SHOW_MTTC, KILLCHAIN_LABEL_SOURCE
 from core.loader import DataLoader
 from utils.helpers import read_any_table, normalize_master_rules_columns, normalize_incident_columns
 from core.normalizer import RuleNormalizer
@@ -30,6 +30,10 @@ from core.mitre_killchain import (
     build_mitre_technique_summary, build_mitre_tactic_summary, build_killchain_summary,
     build_mitre_hierarchy, build_mitre_by_killchain_stage, generate_mitre_killchain_insights,
     parse_description_kv,
+)
+from core.killchain_analysis import (
+    add_effective_severity, build_killchain_severity, build_severity_raise_by_rule,
+    build_label_source_summary, build_rule_category_summary, use_ticket_labels,
 )
 
 st.set_page_config(page_title="SOC Report Generator", layout="wide")
@@ -925,6 +929,25 @@ st.sidebar.subheader("2. Data Bulanan")
 period_label_input = st.sidebar.text_input("Label Periode (contoh: 2026-07)", value="")
 alert_up = st.sidebar.file_uploader("Alert Splunk - 1 bulan penuh (.xlsx / .csv)", type=["xlsx", "csv"], key="alert")
 incident_up = st.sidebar.file_uploader("Insiden Ivanti - 1 bulan penuh (.xlsx / .csv)", type=["xlsx", "csv"], key="incident")
+
+
+def _sheet_choice(up, label, key):
+    """File .xlsx dengan lebih dari 1 sheet (mis. export Ivanti Sept + Okt dalam 1 file): minta pilih sheet,
+    supaya yang diproses bukan sheet pertama secara diam-diam. Return None bila 1 sheet / bukan xlsx."""
+    if up is None or not str(up.name).lower().endswith(".xlsx"):
+        return None
+    try:
+        names = pd.ExcelFile(up).sheet_names
+    except Exception:
+        return None
+    finally:
+        up.seek(0)
+    if len(names) <= 1:
+        return None
+    return st.sidebar.selectbox(label, names, key=key)
+
+
+incident_sheet = _sheet_choice(incident_up, "Sheet Insiden Ivanti yang diproses (file ini punya beberapa sheet)", "incident_sheet")
 nonsplunk_up = st.sidebar.file_uploader("Alert NonSplunk (.xlsx saja) - opsional", type="xlsx", key="nonsplunk")
 st.sidebar.caption("Alert NonSplunk WAJIB .xlsx (bukan .csv) karena butuh 3 sheet sekaligus - Akamai/CSPM/Microsoft Defender - CSV cuma bisa 1 sheet.")
 task_up = st.sidebar.file_uploader("Task SOC dari Ivanti (.xlsx / .csv) - opsional", type=["xlsx", "csv"], key="task")
@@ -950,7 +973,7 @@ if st.sidebar.button("Generate Report", type="primary"):
             domain_mapping = pd.DataFrame(columns=["Priority", "Keyword", "Security_Domain", "Security_Sub_Domain"])
 
         alert = read_any_table(alert_up, filename_hint=alert_up.name)
-        incident = read_any_table(incident_up, filename_hint=incident_up.name)
+        incident = read_any_table(incident_up, sheet_name=incident_sheet, filename_hint=incident_up.name)
         incident = normalize_incident_columns(incident)
         nonsplunk = load_nonsplunk_upload(nonsplunk_up)
         task = load_task_upload(task_up)
@@ -1017,6 +1040,96 @@ def show_metrics(df, label_col="Metric", value_col="Value", cols=4):
     for i, (_, row) in enumerate(df.iterrows()):
         with c[i % cols]:
             st.metric(row[label_col], row[value_col])
+
+
+def plot_bar_multi_sla(df, category_col, value_cols):
+    """Grafik batang berkelompok MTTR/MTTRV (menit) per kategori - matriks performa MOM."""
+    import plotly.express as px
+    d = df[[category_col] + value_cols].copy()
+    for c in value_cols:
+        d[c] = pd.to_numeric(d[c], errors="coerce")
+    long = d.melt(id_vars=category_col, var_name="Metrik", value_name="Menit")
+    long["Metrik"] = long["Metrik"].str.replace("Avg_", "").str.replace("_menit", "")
+    fig = px.bar(long, x=category_col, y="Menit", color="Metrik", barmode="group", text="Menit")
+    fig.update_layout(height=340, margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_killchain_mapping_panels(report, df, key_prefix="kcm", detail=True):
+    """Panel MOM: severity Critical (Exploitation+), breakdown alert vs tiket per Kill Chain,
+    Valid Accounts, validasi MITRE v20, sumber label. df = frame tiket terenrich (sesuai toggle)."""
+    if df is None or len(df) == 0 or "_Severity_Efektif" not in df.columns:
+        return
+    st.markdown("#### 🔴 Severity Kill Chain - Exploitation ke atas = Critical")
+    st.caption("Aturan MOM: tiket yang mencapai tahap Exploitation, Installation, Privilege Escalation, "
+               "Command & Control atau Actions on Objectives dinaikkan menjadi Critical. Dihitung dari label "
+               "yang dipilih di toggle sumber label, bukan dari label Ivanti mentah yang banyak salah-map.")
+    n_all = len(df)
+    n_up = int(df["_Severity_Naik"].sum())
+    n_crit_eff = int((df["_Severity_Efektif"] == "Critical").sum())
+    n_crit_org = int((df["_Severity_Norm"] == "Critical").sum())
+    tp = df[df["_Triage"] == "True Positive"] if "_Triage" in df.columns else df.iloc[0:0]
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Critical (severity Ivanti)", n_crit_org)
+    m2.metric("Critical (efektif)", n_crit_eff, delta=n_crit_eff - n_crit_org)
+    m3.metric("Tiket dinaikkan", n_up)
+    m4.metric("Critical efektif - True Positive", int((tp["_Severity_Efektif"] == "Critical").sum()) if len(tp) else 0)
+    if n_all and n_crit_eff / n_all > 0.2:
+        st.warning(f"⚠️ {round(100 * n_crit_eff / n_all, 1)}% tiket menjadi Critical. Sebagian besar kemungkinan "
+                   "percobaan yang gagal (brute force, WAF block). Lihat kolom True Positive dan pertimbangkan "
+                   "tuning rule sebelum aturan ini dijadikan acuan SLA.")
+    ksev = build_killchain_severity(df)
+    if ksev is not None and len(ksev) > 0:
+        st.dataframe(ksev, use_container_width=True)
+    raise_df = build_severity_raise_by_rule(df)
+    if raise_df is not None and len(raise_df) > 0:
+        with st.expander("Rule yang paling banyak menaikkan severity ke Critical", expanded=False):
+            st.dataframe(raise_df, use_container_width=True)
+
+    st.markdown("#### 📊 Alert vs Tiket per Kill Chain")
+    kab = report.get("killchain_alert_breakdown")
+    if kab is not None and len(kab) > 0:
+        st.dataframe(kab, use_container_width=True)
+        gap = report.get("killchain_rule_gap")
+        if gap is not None and len(gap) > 0:
+            with st.expander("Gap per rule (alert tanpa tiket / tiket melebihi alert)"):
+                st.dataframe(gap, use_container_width=True)
+    else:
+        st.info("Belum ada data alert Splunk di periode ini, jadi gap alert vs tiket belum bisa dihitung. "
+                "Upload export alert Splunk untuk menampilkan tabel ini.")
+
+    vas = report.get("valid_accounts_summary") or {}
+    if vas.get("total_tiket"):
+        st.markdown("#### 🔑 Valid Accounts (T1078) - perlu tuning")
+        for t in vas.get("teks", []):
+            st.markdown(f"- {t}")
+        vr = report.get("valid_accounts_rules")
+        if vr is not None and len(vr) > 0:
+            st.dataframe(vr, use_container_width=True)
+
+    if detail:
+        st.markdown("#### ✅ Validasi MITRE ATT&CK v20")
+        mv, mvi = report.get("mitre_validation"), report.get("mitre_validation_ivanti")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("*Label hasil mapping*")
+            if mv is not None and len(mv) > 0:
+                st.dataframe(mv, use_container_width=True)
+        with c2:
+            st.markdown("*Label asli Ivanti*")
+            if mvi is not None and len(mvi) > 0:
+                st.dataframe(mvi, use_container_width=True)
+        ls = build_label_source_summary(df)
+        rc = build_rule_category_summary(df)
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown("*Sumber label tiket*")
+            if ls is not None and len(ls) > 0:
+                st.dataframe(ls, use_container_width=True)
+        with c4:
+            st.markdown("*Kategori rule*")
+            if rc is not None and len(rc) > 0:
+                st.dataframe(rc, use_container_width=True)
 
 
 def show_insights(keywords):
@@ -1316,19 +1429,19 @@ if current_page == "📋 Executive Summary":
         with c1:
             st.markdown("**SLA by Severity**")
             radar_df = report["sla_metrics"][report["sla_metrics"]["Priority_Label"] != "SEMUA"]
-            radar_cols = [c for c in ["Avg_MTTD_menit", "Avg_MTTR_menit", "Avg_MTTC_menit", "Avg_MTTRV_menit"]
+            radar_cols = [c for c in ["Avg_MTTR_menit"] + (["Avg_MTTC_menit"] if SHOW_MTTC else []) + ["Avg_MTTRV_menit"]
                           if c in radar_df.columns]
-            if radar_cols:
-                plot_radar(radar_df, "Priority_Label", radar_cols)
-            if overall_sla.get("Avg_MTTD_menit") == "Belum ada data":
-                st.caption("⚠️ MTTD belum ada datanya periode ini - digambar 0 di radar (BUKAN cepat).")
-            st.caption("⚠️ MTTC (Contain) belum ada datanya sama sekali - menunggu kolom timestamp dari Ivanti.")
+            if len(radar_cols) >= 2:
+                plot_bar_multi_sla(radar_df, "Priority_Label", radar_cols)
+            st.caption("State machine CSOC: MTTR = Created → Active (SLA 5 menit), MTTC = Active → Contained, "
+                       "MTTRV = Contained → Resolved. MTTD tidak dipakai. MTTC/MTTRV hanya dari tiket yang "
+                       "punya Contained On - lihat Tiket_Contained.")
         with c2:
             st.markdown("**Meet vs Breach**")
             if "Jumlah_Breach" in overall_sla.index:
                 meet_breach_df = pd.DataFrame({
                     "Status": ["Meet", "Breach"],
-                    "Jumlah": [overall_sla["Jumlah_Tiket"] - overall_sla["Jumlah_Breach"], overall_sla["Jumlah_Breach"]],
+                    "Jumlah": [overall_sla.get("Tiket_Dinilai_SLA", overall_sla["Jumlah_Tiket"]) - overall_sla["Jumlah_Breach"], overall_sla["Jumlah_Breach"]],
                 })
                 plot_pie(meet_breach_df, "Status", "Jumlah", semantic=False)
             else:
@@ -1451,6 +1564,18 @@ if current_page == "📋 Executive Summary":
             "gap data yang perlu dilengkapi."
         )
 
+    # Exclude tiket uji coba & toggle sumber label (MOM: mapping tervalidasi vs label Ivanti apa adanya)
+    if len(mitre_df) > 0 and "_Test_Ticket" in mitre_df.columns:
+        mitre_df = mitre_df[~mitre_df["_Test_Ticket"].fillna(False).astype(bool)]
+    _has_dual = len(mitre_df) > 0 and "_KillChain_Stages_Tiket" in mitre_df.columns
+    if _has_dual:
+        _opts = ["Mapping tervalidasi (v2.2)", "Label Ivanti apa adanya"]
+        _src = st.radio("Sumber label Kill Chain & MITRE", _opts, horizontal=True,
+                        index=0 if KILLCHAIN_LABEL_SOURCE == "mapping" else 1, key="mitre_label_source_radio")
+        if _src == _opts[1]:
+            mitre_df = add_effective_severity(use_ticket_labels(mitre_df))
+            st.caption("Memakai label asli tiket Ivanti. Banyak yang salah-map; tampilan ini hanya untuk pembanding.")
+
     # Recompute SEMUA output MITRE/KillChain dari mitre_df (hasil filter
     # toggle di atas) - BUKAN pakai report["mitre_technique_summary"] dkk
     # yang statis (itu selalu dari SEMUA tiket, dihitung sekali saat generate).
@@ -1553,6 +1678,9 @@ if current_page == "📋 Executive Summary":
             for ins in mkc_insights:
                 st.markdown(f"- {ins}")
 
+    if len(mitre_df) > 0:
+        render_killchain_mapping_panels(report, mitre_df, key_prefix="exec", detail=False)
+
     dq = report.get("mitre_killchain_dq")
     if dq is not None and len(dq) > 0:
         st.warning(f"⚠️ **Data Quality**: {len(dq)} tiket punya nilai MITRE/KillChain yang tidak sesuai format "
@@ -1649,7 +1777,7 @@ if current_page == "📋 Executive Summary":
         st.markdown("""
 | Pertanyaan | Dijawab di sini (ringkas) | Detail lengkap ada di halaman |
 |---|---|---|
-| SLA (MTTD/MTTR/MTTC/MTTRV per severity) | Radar chart | **Efektivitas** |
+| SLA (MTTR/MTTRV per priority & severity) | Grafik batang | **Efektivitas** |
 | Meet vs Breach | Pie chart | **Efektivitas**, **KPI Analyst** |
 | Dormant/Noisy Rules, Rule Accuracy | *(dipindah keluar - lihat kolom kanan)* | **Ticket** |
 | Attack Pattern (Subject/Object/Security Control/TTP/Kill Chain) | Sebagian (Subject & Object) | **Threat Profiling** |
@@ -1812,6 +1940,12 @@ if current_page == "Threat Profiling":
     st.info("📊 Cari perbandingan Critical/High/Medium/Low **antar bulan**? Lihat tab **'📊 Perbandingan Bulanan'** "
             "(bagian Tren Severity) - tabel Top Threat di bawah ini snapshot 1 periode saja.")
     show_insights(["H-Threat", "H-AttackSurface"])
+    _tp_raw = report.get("mitre_enriched_raw")
+    if _tp_raw is not None and len(_tp_raw) > 0 and "_Severity_Efektif" in _tp_raw.columns:
+        if "_Test_Ticket" in _tp_raw.columns:
+            _tp_raw = _tp_raw[~_tp_raw["_Test_Ticket"].fillna(False).astype(bool)]
+        with st.expander("🛡️ Validasi mapping Kill Chain, MITRE & severity (MOM)", expanded=False):
+            render_killchain_mapping_panels(report, _tp_raw, key_prefix="tp", detail=True)
 
     if len(report.get("threat_by_priority", [])) > 0:
         st.markdown("**Top 5 Threat per Priority Tier**")
@@ -2099,20 +2233,31 @@ if current_page == "Efektivitas":
 
     if len(report.get("sla_metrics", [])) > 0:
         st.markdown("### SLA Metrics (State Machine: Logged → Active → Contained → Resolved)")
-        st.warning(
-            "⚠️ **MTTC (Mean Time To Contain) belum bisa dihitung** - tidak ada kolom timestamp "
-            "'Contained' terpisah di data Ivanti saat ini (masih dicek ke tim Ivanti). MTTD pakai proxy "
-            "Alert Time (Splunk) → Created On (Ivanti) - tolong dikonfirmasi apakah ini sesuai maksud."
+        st.info(
+            "**Matriks performa (CSOC State Machine)**: MTTR = Created → Active (respons, SLA 5 menit), "
+            "MTTC = Active → Contained, MTTRV = Contained → Resolved. MTTD tidak dipakai (MOM manajemen). "
+            + ("MTTC dan MTTRV dihitung hanya untuk tiket yang punya timestamp Contained On "
+               "(lihat Tiket_Contained / %_Contained untuk cakupannya)." if SHOW_MTTC else "")
         )
 
-        st.markdown("**Response Speed by Severity (Radar Chart)**")
-        st.caption("Semakin menjorok keluar/lancip ke arah 1 metrik, semakin LAMBAT di metrik itu - "
-                   "bagus untuk lihat sekilas tier mana yang paling perlu perhatian.")
+        st.markdown("**Matriks MTTR & MTTRV per Priority**")
         radar_df = report["sla_metrics"][report["sla_metrics"]["Priority_Label"] != "SEMUA"]
-        plot_radar(radar_df, "Priority_Label",
-                   ["Avg_MTTD_menit", "Avg_MTTR_menit", "Avg_MTTC_menit", "Avg_MTTRV_menit"])
-
+        sla_cols_show = [c for c in ["Avg_MTTR_menit"] + (["Avg_MTTC_menit"] if SHOW_MTTC else []) + ["Avg_MTTRV_menit"]
+                         if c in radar_df.columns]
+        if len(sla_cols_show) >= 2:
+            plot_bar_multi_sla(radar_df, "Priority_Label", sla_cols_show)
         st.dataframe(report["sla_metrics"], use_container_width=True)
+
+        sla_sev = report.get("sla_metrics_by_severity")
+        if sla_sev is not None and len(sla_sev) > 0:
+            st.markdown("**Matriks MTTR & MTTRV per Severity (label Ivanti)**")
+            st.dataframe(sla_sev, use_container_width=True)
+        if report.get("sla_metrics_note"):
+            st.caption(report["sla_metrics_note"])
+        _sq = report.get("sla_state_quality")
+        if _sq is not None and len(_sq) > 0:
+            with st.expander("Kualitas data state (Active / Contained / Resolved / Closed)"):
+                st.dataframe(_sq, use_container_width=True)
         st.divider()
 
     with st.expander("ℹ️ Definisi Cause Code"):
@@ -2167,8 +2312,8 @@ if current_page == "KPI Analyst":
     st.caption("👤 Menjawab: siapa yang paling banyak bekerja, seberapa cepat responsnya (People Performance).")
     st.info(
         "**Take** = Total_Incident/Task diambil. **MTTR** = Created On → Responded On (Logged→Active). "
-        "**MTTRV** = Responded On → Resolved On (Active→Resolved). **MTTC** (Contain) belum bisa dihitung "
-        "per analyst - sama seperti SLA Metrics di tab Efektivitas, menunggu kolom Contained dari Ivanti."
+        "**MTTC** = Active → Contained On, **MTTRV** = Contained On → Resolved On (hanya tiket yang punya "
+        "timestamp Contained On; lihat Tiket_Contained). Breach = MTTR lebih dari 5 menit. MTTD tidak dipakai."
     )
     show_insights(["H-KPI"])
     kpi_full = report["soc_individual_kpi"]
@@ -2184,8 +2329,12 @@ if current_page == "KPI Analyst":
     # (skema kolom beda dari versi kode terbaru), tidak crash KeyError, cuma
     # kolom itu tidak muncul (lebih baik daripada aplikasi berhenti total).
     wanted_cols = ["Owner", "Total_Incident", "Total_Task", "Total_Workload (Insiden+Task)",
-                   "Avg_MTTR_sec", "Avg_MTTRV_sec", "Avg_MTTC_sec", "Breach", "Breach_Rate_%", "Within_SLA_MTTR"]
-    available_cols = [c for c in wanted_cols if c in kpi_filtered.columns]
+                   "Avg_MTTR_sec", "Avg_MTTRV_sec"] + (["Avg_MTTC_sec"] if SHOW_MTTC else []) + [
+                   "Breach", "Breach_Rate_%", "Within_SLA_MTTR"]
+    available_cols = [c for c in wanted_cols if c in kpi_filtered.columns
+                      and not (c == "Avg_MTTC_sec" and kpi_filtered[c].isna().all())]
+    if "Avg_MTTC_sec" in available_cols and "Tiket_Contained" in kpi_filtered.columns:
+        available_cols.insert(available_cols.index("Avg_MTTC_sec") + 1, "Tiket_Contained")
     missing_cols = [c for c in wanted_cols if c not in kpi_filtered.columns]
     if missing_cols:
         st.caption(f"⚠️ Kolom {missing_cols} tidak ada di laporan ini (kemungkinan laporan lama dari "

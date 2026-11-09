@@ -1,0 +1,326 @@
+[
+ {
+  "family": "O365 login gagal dari luar Indonesia (varian nama)",
+  "pattern": "multiple failed o365 logins from outside indonesia",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0006, T1110",
+  "keyakinan": "Sedang",
+  "alasan": "Sama dengan rule 'Multiple Failed O365 Logins from Outside Indonesia' di mapping v2.0."
+ },
+ {
+  "family": "Akamai - Alert Cleared (notifikasi penutupan)",
+  "pattern": "alert cleared",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Notifikasi penutupan alert (Alert Cleared). Bukan kejadian baru. Disarankan tidak membuat tiket dari email ini."
+ },
+ {
+  "family": "Threat intel darknet (THREAT_ALERT)",
+  "pattern": "^high (alert - threat_alert|alert).*darknet",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Notifikasi threat-intel darknet: informasi eksposur, bukan aktivitas pada aset. Tidak dimasukkan ke grafik kill chain."
+ },
+ {
+  "family": "FortiRecon - Stealer Infections (kredensial bocor)",
+  "pattern": "fortirecon.*stealer infections|stealer infections",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Installation",
+  "mitre_attack": "TA0006, T1555",
+  "keyakinan": "Rendah",
+  "alasan": "Laporan infostealer pada perangkat yang kredensialnya bocor: malware sudah terpasang dan mencuri kredensial. Fase Installation hanya jika benar-benar diverifikasi; kalau tidak, gunakan kategori Informasional."
+ },
+ {
+  "family": "FortiRecon - email ALTO ditemukan di kebocoran data",
+  "pattern": "fortirecon.*(combolist|data breach)|affiliated email",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Email perusahaan ditemukan di kebocoran data pihak ketiga: eksposur kredensial (kandidat TA0043, T1589.002), belum tentu ada aktivitas pada aset ALTO."
+ },
+ {
+  "family": "FortiRecon - EASM / Intelligence Collection",
+  "pattern": "fortirecon.*(easm|continuous monitoring|intelligence collection)",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Pemantauan attack surface dan pengumpulan intel: informasional, bukan serangan."
+ },
+ {
+  "family": "FortiRecon - Brand Protection: domain",
+  "pattern": "fortirecon.*brand protection.*(domain)",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Domain tiruan merek (kandidat TA0042, T1583.001). Risiko merek, bukan serangan ke aset internal."
+ },
+ {
+  "family": "FortiRecon - Brand Protection: sosial media / aplikasi palsu",
+  "pattern": "fortirecon.*brand protection.*(social|rogue)",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Ancaman merek di media sosial atau aplikasi palsu (kandidat TA0042, T1585.001). Bukan serangan ke aset internal."
+ },
+ {
+  "family": "Akamai - Security Configuration: serangan web tidak dimitigasi",
+  "pattern": "security configuration.*(non-mitigated|web app attack)",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0001, T1190",
+  "keyakinan": "Sedang",
+  "alasan": "Lonjakan serangan aplikasi web yang tidak dimitigasi WAF Akamai: upaya eksploitasi aplikasi publik."
+ },
+ {
+  "family": "Akamai - Denied Traffic dari IP kantor",
+  "pattern": "denied traffic from office network",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Aturan Akamai [IVANTI] Denied Traffic dari IP kantor, kemungkinan trafik internal. Perlu keputusan tim Akamai."
+ },
+ {
+  "family": "Cloud posture: user tidak aktif, tanpa MFA, SSH publik, role mencurigakan",
+  "pattern": "found aws cloud user inactive|aws iam user without mfa|instance with a public ip exposing ssh|cloud role (trusting|associated)",
+  "kategori_kode": "P",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Temuan postur cloud (hygiene/konfigurasi): bukan aktivitas serangan. Ditampilkan di panel Perubahan/kebijakan."
+ },
+ {
+  "family": "AWS - Identity Resource Privilege Escalation",
+  "pattern": "aws identity resource privilege escalation",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0004, T1098",
+  "keyakinan": "Rendah",
+  "alasan": "Eskalasi hak akses identitas cloud. Perlu dicek apakah kejadian nyata atau kebijakan: lihat deskripsi tiket."
+ },
+ {
+  "family": "AWS - MFA dinonaktifkan",
+  "pattern": "aws multi factor authentication disabled",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Installation",
+  "mitre_attack": "TA0112, T1556.006",
+  "keyakinan": "Sedang",
+  "alasan": "Sama dengan rule 'AWS Multi Factor Authentication Disabled' di mapping v2.0."
+ },
+ {
+  "family": "GCP - perubahan konfigurasi (varian nama)",
+  "pattern": "detected successful gcp service account key creation|etected successful gcp service account creation|detected successful gcs bucket creation|detected successful gce instance state modification",
+  "kategori_kode": "P",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Perubahan konfigurasi GCP (kategori Perubahan/kebijakan), sama dengan keluarga rule 'Detected Successful GC*' di mapping v2.0."
+ },
+ {
+  "family": "Router - perubahan konfigurasi admin (varian nama)",
+  "pattern": "activity admin config modifications on router",
+  "kategori_kode": "P",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Perubahan konfigurasi router oleh admin: perubahan/kebijakan, sama dengan rule serupa di mapping v2.0."
+ },
+ {
+  "family": "Koneksi keluar Indonesia (varian nama)",
+  "pattern": "network connection outside indonesia",
+  "kategori_kode": "P",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Koneksi keluar Indonesia: sama dengan rule 'Network Connection Outside Indonesia' (P) di mapping v2.0."
+ },
+ {
+  "family": "Cynet email - Unauthorized File Operation",
+  "pattern": "unauthorized file",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Actions on Objectives",
+  "mitre_attack": "TA0040, T1485",
+  "keyakinan": "Rendah",
+  "alasan": "Alert email Cynet: memakai mapping rule Cynet Unauthorized File Operation (v2.0)."
+ },
+ {
+  "family": "Cynet email - Unauthorized Registry Operation",
+  "pattern": "unauthorized registry operation",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Installation",
+  "mitre_attack": "TA0003, T1112",
+  "keyakinan": "Rendah",
+  "alasan": "Modifikasi registry tak sah (Cynet). T1112 sekarang berada di taktik Defense Impairment dan Persistence pada ATT&CK v20. Perlu konfirmasi analis."
+ },
+ {
+  "family": "Cynet email - Malicious Script Command",
+  "pattern": "malicious script command",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0002, T1059",
+  "keyakinan": "Rendah",
+  "alasan": "Alert email Cynet Malicious Script Command: sama dengan rule v2.0."
+ },
+ {
+  "family": "Cynet email - Process / Windows Events Monitoring",
+  "pattern": "process monitoring|windows events monitoring",
+  "kategori_kode": "U",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Alert Cynet generik (nama tidak menjelaskan teknik). Sama dengan rule Process Monitoring yang berstatus PENDING di v2.0."
+ },
+ {
+  "family": "Malicious application on endpoint user",
+  "pattern": "malicious application on endpoint",
+  "kategori_kode": "U",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Deskripsi hanya berisi path aplikasi. Teknik tidak dapat disimpulkan dari nama alert."
+ },
+ {
+  "family": "Defender - malware / PUA dicegah",
+  "pattern": "(malware|unwanted software).*(prevented|blocked)|unknown malware",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Delivery",
+  "mitre_attack": "TA0002, T1204.002",
+  "keyakinan": "Sedang",
+  "alasan": "Defender memblokir malware atau PUA sebelum terpasang: fase Delivery (payload sampai ke endpoint, dicegah)."
+ },
+ {
+  "family": "Defender - perintah mencurigakan di registry / RunMRU",
+  "pattern": "suspicious (powershell )?command in (runmru )?registry|runmru",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0002, T1059.001",
+  "keyakinan": "Rendah",
+  "alasan": "Perintah mencurigakan di registry/RunMRU: eksekusi perintah."
+ },
+ {
+  "family": "Defender - eksekusi lewat WSL",
+  "pattern": "windows subsystem for linux|wsl",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0002, T1059.004",
+  "keyakinan": "Rendah",
+  "alasan": "Eksekusi perintah lewat WSL."
+ },
+ {
+  "family": "Defender - proxy / tunneling tool",
+  "pattern": "proxy or tunneling tool",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Command & Control",
+  "mitre_attack": "TA0011, T1090",
+  "keyakinan": "Sedang",
+  "alasan": "Pemakaian proxy atau tunneling tool: kanal command and control."
+ },
+ {
+  "family": "Defender - koneksi mencurigakan ke layanan remote",
+  "pattern": "suspicious connection to remote service",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Command & Control",
+  "mitre_attack": "TA0011, T1219",
+  "keyakinan": "Rendah",
+  "alasan": "Koneksi mencurigakan ke layanan remote: kemungkinan remote access tool."
+ },
+ {
+  "family": "Defender - multi-stage incident",
+  "pattern": "multi-stage incident",
+  "kategori_kode": "U",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Insiden korelasi multi-tahap dari Defender: kill chain tergantung tahapan di dalamnya. Perlu analis."
+ },
+ {
+  "family": "SSH scan (Wazuh)",
+  "pattern": "ssh scan",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Reconnaissance",
+  "mitre_attack": "TA0043, T1595.001",
+  "keyakinan": "Sedang",
+  "alasan": "Pemindaian port SSH: pengintaian aktif."
+ },
+ {
+  "family": "Brute Force ATMI",
+  "pattern": "brute force atmi",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Exploitation",
+  "mitre_attack": "TA0006, T1110",
+  "keyakinan": "Sedang",
+  "alasan": "Brute force: sama dengan keluarga rule brute force di v2.0."
+ },
+ {
+  "family": "NTA - DDoS / traffic abnormal",
+  "pattern": "ddos attack alert|traffic abnormal",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Actions on Objectives",
+  "mitre_attack": "TA0040, T1498",
+  "keyakinan": "Rendah",
+  "alasan": "DDoS: dampak pada ketersediaan layanan. Konsisten dengan rule 'Web Monitoring - Anomaly High Traffic'."
+ },
+ {
+  "family": "Forcepoint - ambang kategori internet",
+  "pattern": "threshold exceeded for permitted category",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Notifikasi Forcepoint ambang penggunaan internet: kebijakan penggunaan, bukan serangan."
+ },
+ {
+  "family": "ALTO WEBCLAIM - Password Reminder",
+  "pattern": "password reminder",
+  "kategori_kode": "O",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Pengingat kedaluwarsa password dari aplikasi: operasional, bukan alert keamanan. Disarankan tidak membuat tiket."
+ },
+ {
+  "family": "Imbauan keamanan siber (regulator)",
+  "pattern": "imbauan keamanan siber",
+  "kategori_kode": "I",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Sedang",
+  "alasan": "Imbauan dari regulator berisi permintaan blokir IoC: tugas tindak lanjut, bukan deteksi. Saran: kategori tiket terpisah."
+ },
+ {
+  "family": "Sensitive information lookup",
+  "pattern": "sensitive information lookup",
+  "kategori_kode": "U",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Rendah",
+  "alasan": "Alert email dari sistem VM/endpoint, deskripsi tidak menjelaskan teknik. Perlu analis."
+ },
+ {
+  "family": "AKR Repeated Denied Access to ADAMA & WEBMONI (rule baru)",
+  "pattern": "akr repeated denied access",
+  "kategori_kode": "S",
+  "cyber_kill_chain": "Reconnaissance",
+  "mitre_attack": "TA0043, T1595",
+  "keyakinan": "Rendah",
+  "alasan": "Rule baru (belum ada di mapping v2.0): akses ditolak berulang oleh firewall. Pada sampel Oktober 100% dinilai False Positive, perlu tuning."
+ },
+ {
+  "family": "Tiket uji (testing on prod, Clone Test)",
+  "pattern": "incident testing on prod|clone test",
+  "kategori_kode": "T",
+  "cyber_kill_chain": "",
+  "mitre_attack": "",
+  "keyakinan": "Tinggi",
+  "alasan": "Tiket uji. Keluarkan dari laporan."
+ }
+]

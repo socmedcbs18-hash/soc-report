@@ -53,6 +53,16 @@ WEEK_END_DAY = "Saturday"
 # SLA Response Time
 SLA_MTTR_SECONDS = 300
 
+# MOM manajemen (Nov 2026): MTTD tidak dipakai di report. MTTC (Created On -> Contained On) tampil
+# bila kolom 'Contained On' ada dan terisi di data Ivanti (export Sept-Okt 2026 versi _1 sudah ada).
+# Jika kolom tidak ada, MTTC otomatis disembunyikan. Set False untuk menyembunyikan paksa.
+SHOW_MTTC = True
+
+# Sumber label Kill Chain/MITRE di report: "mapping" = mapping v2.2 per nama rule (label tiket
+# dipakai hanya untuk rule yang belum dipetakan); "tiket" = label Ivanti apa adanya.
+# Di dashboard bisa dibalik lewat toggle tanpa generate ulang.
+KILLCHAIN_LABEL_SOURCE = "mapping"
+
 # =========================================================
 # RULE CONFIGURATION
 # =========================================================

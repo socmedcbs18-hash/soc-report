@@ -119,8 +119,7 @@ def normalize_incident_columns(df):
     sendiri - dipakai LANGSUNG, tidak dihitung ulang dari nol lagi.
 
     Field yang TIDAK ADA lagi di skema baru (dibanding sebelumnya): "Alert
-    Time" (dulu dipakai proxy MTTD) - MTTD jadi tidak bisa dihitung dari
-    skema baru ini, kecuali ada sumber lain."""
+    Time". MTTD sudah dikeluarkan dari report (MOM manajemen Nov 2026)."""
     import pandas as pd
 
     df = df.copy()
@@ -143,6 +142,13 @@ def normalize_incident_columns(df):
         if _target and _c != _target and _target not in df.columns:
             df = df.rename(columns={_c: _target})
 
+    # Export Ivanti "detail" (Sept-Okt 2026) memakai 'Incident Name' untuk nama rule/alert,
+    # sedangkan pipeline mencocokkan rule lewat kolom 'Summary'. Tanpa alias ini SEMUA tiket
+    # jatuh ke 'Unknown Rule (No Summary)' dan gap alert-vs-tiket tidak akurat. Kolom
+    # 'Incident Name' tetap dipertahankan; 'Summary' hanya dibuat bila belum ada.
+    if "Summary" not in df.columns and "Incident Name" in df.columns:
+        df["Summary"] = df["Incident Name"]
+
     rename_map = {
         "Ticket Number": "Incident",
         "Active DateTime": "Responded On",  # konsep "mulai ditangani" = Active
@@ -150,7 +156,7 @@ def normalize_incident_columns(df):
     }
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns and rename_map[k] not in df.columns})
 
-    for col in ["Created On", "Resolved On", "Closed On", "Responded On", "Resolved Date Time"]:
+    for col in ["Created On", "Resolved On", "Closed On", "Contained On", "Responded On", "Resolved Date Time"]:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce")
 

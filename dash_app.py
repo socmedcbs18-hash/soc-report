@@ -208,13 +208,13 @@ def _build_executive_summary(report):
         ], style={"display": "flex", "gap": "12px", "marginBottom": "16px"}))
 
         radar_df = sla_df[sla_df["Priority_Label"] != "SEMUA"]
-        radar_cols = [c for c in ["Avg_MTTD_menit", "Avg_MTTR_menit", "Avg_MTTC_menit", "Avg_MTTRV_menit"] if c in radar_df.columns]
+        radar_cols = [c for c in ["Avg_MTTR_menit", "Avg_MTTC_menit", "Avg_MTTRV_menit"] if c in radar_df.columns]
         meet_breach_df = pd.DataFrame({
             "Status": ["Meet", "Breach"],
-            "Jumlah": [overall_sla.get("Jumlah_Tiket", 0) - overall_sla.get("Jumlah_Breach", 0), overall_sla.get("Jumlah_Breach", 0)],
+            "Jumlah": [overall_sla.get("Tiket_Dinilai_SLA", overall_sla.get("Jumlah_Tiket", 0)) - overall_sla.get("Jumlah_Breach", 0), overall_sla.get("Jumlah_Breach", 0)],
         }) if "Jumlah_Breach" in overall_sla.index else None
 
-        row = [dcc.Graph(figure=fig_radar(radar_df, "Priority_Label", radar_cols, title="SLA by Severity"))]
+        row = [dcc.Graph(figure=fig_bar_multi(radar_df, "Priority_Label", radar_cols, title="MTTR & MTTRV (menit) per Priority"))]
         if meet_breach_df is not None:
             row.append(dcc.Graph(figure=fig_pie(meet_breach_df, "Status", "Jumlah", title="Meet vs Breach")))
         sections.append(html.Div(row, style={"display": "grid", "gridTemplateColumns": "3fr 2fr", "gap": "16px"}))

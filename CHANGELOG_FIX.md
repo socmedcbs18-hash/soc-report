@@ -2673,3 +2673,35 @@ Koreksi desain atas permintaan user: laporan insiden adalah bagian dari SOC Repo
 - Test baru: `core/tests/test_incident_columns.py` (4 test, data sintetis). Diuji juga pada `Raw_Data_September_SOC_2026.xlsx` (987 tiket): 457 tiket ber-Triage (176 TP, 281 FP), 351 tiket punya stage Kill Chain, 439 punya MITRE.
 - Stage "Command & Control" (14 tiket di data Sept 2026) kini stage resmi ke-8 (atas konfirmasi user), diurutkan tepat sebelum "Actions On Objectives" (konstanta `KILLCHAIN_STAGE_ORDER` di `core/mitre_killchain.py`; ubah di sana bila posisi perlu digeser). Dipakai di ringkasan, funnel, drill-down, dan dihitung sebagai tahap lanjut pada insight "Postur deteksi". Setelah ini: 363 tiket punya stage Kill Chain (sebelumnya 351), baris Data Quality 23 -> 9.
 - Tiket testing (mis. 2881668) sengaja TETAP dimasukkan (keputusan user); tampil sebagai baris di Data Quality.
+
+## 116. SOC Report: tindak lanjut MOM manajemen (MTTD dihapus, matriks MTTR/MTTRV, Kill Chain = severity, mapping tervalidasi, Valid Accounts, validasi MITRE v20)
+
+Sumber: MOM dengan manajemen (gap tiket vs alert; MTTD dihapus; matriks MTTR/MTTC/MTTRV; breakdown alert per Kill Chain; Exploitation = Critical; tuning Valid Accounts; validasi MITRE).
+
+- **MTTD dihapus** dari `core/processor.py` (`build_sla_metrics`), radar/grafik `app.py` dan `dash_app.py`. **MTTC disembunyikan** lewat `SHOW_MTTC = False` di `config/settings.py` (data 'Contained' Ivanti masih diperbaiki; ubah ke True bila sudah siap). MTTR = Created -> Active, MTTRV = Created -> Resolved (kolom `Duration Resolved (Minutes)`, cocok 100% dengan selisih timestamp di data Sept-Okt). Caption lama di KPI Analyst yang menulis MTTRV = Active->Resolved sudah diperbaiki. Matriks juga tersedia per Severity (`sla_metrics_by_severity`).
+- **Skema export baru**: kolom `Incident Name` kini di-alias ke `Summary` (`utils/helpers.py`), sehingga rule tiket Ivanti dapat dicocokkan ke master/mapping.
+- **Mapping rule -> Kill Chain/MITRE** (`core/rule_mapping.py`, data di `config/data/`): `rule_killchain_mitre.csv` (314 rule, v2.2), `alert_nonsplunk_patterns.json` (alert non-Splunk), `attack_v20_ref.json` (ATT&CK Enterprise v20.0). Label tiket diganti label hasil mapping; label Ivanti asli disimpan di kolom `*_Tiket` / `(Ivanti)` dan bisa dipilih lewat toggle "Sumber label" di Executive Summary (`KILLCHAIN_LABEL_SOURCE` untuk default). Rule berstatus "Usulan"/"Perlu review SPL" dan rule yang belum ada di mapping tetap memakai label tiket (ditandai di panel Sumber label). Tiket uji coba dikeluarkan dari ringkasan.
+- **Severity**: tahap Exploitation, Installation, Privilege Escalation, Command & Control, Actions on Objectives -> Critical (`core/killchain_analysis.py`: `add_effective_severity`). Ditampilkan severity asli vs efektif, tabel per tahap, rule penyebab kenaikan, dan jumlah True Positive terpisah. Peringatan muncul bila >20% tiket menjadi Critical.
+- **Alert vs Tiket per Kill Chain** (`build_killchain_alert_breakdown`): alert, tiket, konversi dan gap per tahap dan per rule. Tanpa upload alert Splunk tabel kosong dan UI memberi tahu.
+- **Valid Accounts (T1078)**: perbandingan jumlah tiket label Ivanti vs hasil mapping dan tabel rule dengan False Positive >= 70% (min. 10 tiket triase) sebagai kandidat tuning.
+- **Validasi MITRE ATT&CK v20** (`build_mitre_validation_report`): kode revoked/deprecated beserta penggantinya, untuk label mapping dan label Ivanti. TA0005 kini bernama "Stealth" di v20.
+- Sheet Excel baru otomatis: Killchain Alert Breakdown, Killchain Rule Gap, Killchain Severity, Severity Raise By Rule, Valid Accounts Rules, Mitre Validation (+ Ivanti), Sla Metrics By Severity.
+- Test baru: `core/tests/test_killchain_mapping.py` (11 test, data sintetis). Suite cybersec_report (101), soc_incident (30), core (16) lolos.
+- Diuji end-to-end pada `Raw_Data_ITOC_September_-_Oktober_2026.xlsx` (Excel + PPT terbentuk, tanpa MTTD/MTTC). Alert Splunk yang dipakai pada uji itu SINTETIS (hanya untuk menguji kode). Halaman Streamlit belum dijalankan di lingkungan uji (streamlit tidak terpasang); fungsi panel diuji dengan stub.
+- Catatan: "Exploitation = Critical" menaikkan jumlah Critical secara drastis (Oktober: 41 -> sekitar 425 tiket berlabel Exploitation sebelum disaring True Positive). Perlu keputusan manajemen apakah acuan SLA memakai severity efektif atau asli.
+
+## 117. SOC Report: MTTR/MTTC/MTTRV mengikuti CSOC State Machine (kolom 'Contained On' sudah ada)
+
+- Sumber: diagram CSOC State Machine (Logged -> Active -> Contained -> Resolved -> Closed) dan file `Raw_Data_ITOC_September_-_Oktober_2026_1.xlsx` yang kini punya kolom timestamp `Contained On` (kolom teks `Contained` tetap tidak dipakai).
+- Definisi (fungsi baru `compute_state_durations` di `core/processor.py`): MTTR = Created On -> Active; MTTC = Active -> Contained On; MTTRV = Contained On -> Resolved On. Tambahan: Resolusi Total = Created -> Resolved, Tutup = Resolved -> Closed. Ini MENGGANTI definisi MTTRV pada entri 116 (Created -> Resolved), yang kini menjadi kolom `Avg_Resolusi_Total_menit`.
+- MTTC dan MTTRV hanya dihitung dari tiket yang punya `Contained On` (Sept 201 dari 987; Okt 629 dari 1.675). Kolom `Tiket_Contained` dan `%_Contained` menampilkan cakupannya; `Median_*` ditampilkan karena rata-rata terdongkrak outlier. Selisih negatif (urutan timestamp terbalik) tidak dihitung dan dicatat di sheet baru `Sla State Quality`.
+- Breach SLA response = Created On -> Active lebih dari 5 menit (`SLA_MTTR_SECONDS`), dihitung dari timestamp di `_compute_incident_breach_flag` (dipakai seragam oleh KPI analyst, SLA, dsb). Flag bawaan Ivanti disimpan di `_Breach_Ivanti` dan ditampilkan sebagai `Breach_Menurut_Ivanti` untuk pembanding. Tiket tanpa timestamp Active tidak dinilai (`Tiket_Dinilai_SLA`). Flag breach resolution Ivanti tidak lagi ikut menghitung breach.
+- `SHOW_MTTC = True`; MTTC otomatis tersembunyi bila kolom `Contained On` tidak ada/kosong (skema lama; MTTRV kembali ke Created -> Resolved dan catatan di laporan menyebutkannya).
+- `core/pptx_writer.py`: slide baru "Matriks Performa SOC" per Priority dan per Severity. `app.py`/`dash_app.py`: grafik MTTR/MTTC/MTTRV, caption diperbarui, Meet vs Breach memakai `Tiket_Dinilai_SLA`.
+- Test: 3 test baru (durasi state, fallback tanpa Contained On, breach 5 menit); total core 19 test lolos.
+- Modul `soc_incident` (terpisah) tidak diubah dan masih memakai flag breach Ivanti.
+
+## 118. SOC Report: pilih sheet saat file Ivanti punya banyak sheet
+
+- Sebelumnya `read_any_table` membaca sheet PERTAMA saja, sehingga file Ivanti berisi Sept + Okt diam-diam hanya memproses September. `app.py` kini menampilkan pilihan sheet di sidebar bila file .xlsx insiden punya lebih dari satu sheet.
+- Mapping Kill Chain/MITRE otomatis dari `config/data/` (tidak perlu upload); yang wajib diupload tetap Master Rules, Alert Splunk, dan Insiden Ivanti.
