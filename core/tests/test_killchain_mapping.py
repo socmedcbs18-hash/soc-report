@@ -208,3 +208,21 @@ class TestOutcomeAwareStaging(unittest.TestCase):
     def test_webmoni_denied_scan_is_reconnaissance(self):
         self.assertEqual(self._kc("Infrastructure - [ALTO-ESV3] AKR - WebMoni - Public IP Traffic Detection - Rule"),
                          "[Reconnaissance]")
+
+
+class TestOutcomeStage(unittest.TestCase):
+    def test_false_positive_not_counted(self):
+        from core.outcome_stage import refine_outcome
+        m, k, b, ch = refine_outcome("False Positive", "", "[TA0001, T1190]", "[Delivery]")
+        self.assertEqual((m, k, ch), ("[]", "[]", True))
+
+    def test_prevented_capped_at_delivery(self):
+        from core.outcome_stage import refine_outcome
+        m, k, b, ch = refine_outcome("", "Prevented", "[TA0002, T1059]", "[Exploitation, Installation]")
+        self.assertEqual(k, "[Delivery]")
+        self.assertEqual(m, "[TA0002, T1059]")
+
+    def test_breach_and_true_positive_keep_rule_label(self):
+        from core.outcome_stage import refine_outcome
+        self.assertEqual(refine_outcome("", "Breach - Reported", "[x]", "[Exploitation]")[1], "[Exploitation]")
+        self.assertEqual(refine_outcome("True Positive", "", "[x]", "[Exploitation]")[1], "[Exploitation]")

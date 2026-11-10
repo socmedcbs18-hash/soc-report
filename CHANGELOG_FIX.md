@@ -2734,3 +2734,10 @@ Temuan: grafik Kill Chain tidak menyempit karena (a) 51 rule percobaan gagal/dib
 - Weaponization = 0 dan Privilege Escalation = 0 wajar: tahap dilakukan di sisi penyerang / tidak ada rule SIEM yang memetakannya.
 - Test baru `TestOutcomeAwareStaging`; test `TestProposedLabels` memakai rule Usulan lain.
 - Batasan: jumlah tiket per tahap = sebaran cakupan deteksi, bukan bukti progres serangan; corong sejati butuh korelasi tiket per IP/akun/host.
+
+## 122. Tahap Kill Chain berbasis hasil investigasi + rekomendasi perbaikan rule Splunk
+
+- Modul baru `core/outcome_stage.py`, dipanggil dari `apply_rule_mapping` bila `settings.KILLCHAIN_BASIS == "confirmed"` (default). False Positive -> label kosong (tidak dihitung sebagai serangan); Cause Code Prevented -> tahap dibatasi sampai Delivery; Breach Reported dan True Positive -> label rule. Label rule asli disimpan di `_KC_Potensial`, `_MITRE_Potensial`; alasan di `_Basis_Hasil`. `KILLCHAIN_BASIS = "rule"` mengembalikan perilaku lama.
+- Temuan data: di Sept-Okt Cause Code hanya terisi pada tiket yang belum di-Triage (Prevented 82, Breach 118); 760 tiket True Positive tanpa Cause Code.
+- Sebaran Sept-Okt (potensi rule -> terkonfirmasi): Recon 495->365, Delivery 688->431, Exploitation 290->109, Installation 120->37, C2 2->2, AOO 61->27.
+- Test baru `TestOutcomeStage`. Batasan: Cause Code dipakai apa adanya (diisi manual analyst).

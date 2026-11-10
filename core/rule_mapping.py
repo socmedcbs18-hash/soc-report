@@ -176,4 +176,12 @@ def apply_rule_mapping(df, name_col="Summary", mitre_col="Incident MITRE", kc_co
     if replace:
         from core.ticket_context import apply_ticket_context
         apply_ticket_context(df, mitre_col, kc_col)
+        try:
+            from config import settings as _st
+            _basis = getattr(_st, 'KILLCHAIN_BASIS', 'confirmed')
+        except Exception:
+            _basis = 'confirmed'
+        if _basis == 'confirmed':
+            from core.outcome_stage import apply_outcome
+            apply_outcome(df, mitre_col, kc_col)
     return df

@@ -235,3 +235,7 @@ AUTO_EXECUTIVE_SUMMARY = True
 # False = tiket tetap memakai label asli Ivanti sampai tim Splunk mengonfirmasi.
 # Perhatian: tahap Command & Control termasuk 'Exploitation ke atas' = Critical.
 TERAPKAN_LABEL_USULAN = True
+
+# Dasar penghitungan Kill Chain/MITRE: "confirmed" = hanya aktivitas yang terkonfirmasi (False Positive tidak dihitung,
+# True Positive Prevented dibatasi sampai Delivery); "rule" = label rule apa adanya (potensi deteksi).
+KILLCHAIN_BASIS = "confirmed"
