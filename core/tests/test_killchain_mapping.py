@@ -157,3 +157,38 @@ class TestProposedLabels(unittest.TestCase):
             self.assertEqual(o.loc[0, "Incident KillChain"], "[Delivery]")
         finally:
             rm._APPLY_PROPOSED = old
+
+
+class TestTicketContext(unittest.TestCase):
+    EX = "Applications - [ESV3] - O365 Exfiltration via File Download - Rule"
+
+    def _r(self, rule, desc, mitre="[TA0009, T1530]", kc="[Actions on Objectives]"):
+        from core.ticket_context import refine_ticket
+        return refine_ticket(rule, desc, mitre, kc)
+
+    def test_internal_download_not_a_killchain_stage(self):
+        m, k, c, ch = self._r(self.EX, "count: 109 signature: FileDownloaded user: ryan@alto.id")
+        self.assertEqual((m, k, ch), ("[TA0009, T1530]", "[]", True))
+
+    def test_internal_sync_cleared(self):
+        m, k, c, ch = self._r(self.EX, "count: 95 signature: FileSyncDownloadedFull user: novi@alto.id")
+        self.assertEqual((m, k), ("[]", "[]"))
+
+    def test_external_and_anonymous_keep_aoo(self):
+        for u in ("niconsamuel10@gmail.com", "urn:spo:tenantanon#abc"):
+            m, k, c, ch = self._r(self.EX, f"count: 5 signature: FileDownloaded user: {u}")
+            self.assertEqual((k, ch), ("[Actions on Objectives]", False))
+
+    def test_missing_identity_keeps_rule_label_but_says_so(self):
+        m, k, c, ch = self._r(self.EX, "The alert condition ... was triggered.")
+        self.assertEqual((k, ch), ("[Actions on Objectives]", False))
+        self.assertIn("belum bisa diverifikasi", c)
+
+    def test_cynet_subrule_from_description(self):
+        rule = "Infrastructure - [ALTO-ESV3] Cynet - Unauthorized File Operation Attempt - Rule"
+        d = "Host ID 1  Rule Name IOF - Credentials Theft - MasterKey - Not Signed Process - AF  Process Command Line x"
+        self.assertEqual(self._r(rule, d, "[TA0040, T1485]", "[Actions on Objectives]")[:2], ("[TA0006, T1555]", "[Exploitation]"))
+        d = "Rule Name IOF - Ransomware Extension Found - KWABN  Process Command Line x"
+        self.assertEqual(self._r(rule, d)[1], "[Actions on Objectives]")
+        d = "Rule Name IOF - Tar - Extracting Files From Remote Host  Process Command Line x"
+        self.assertEqual(self._r(rule, d)[:2], ("[]", "[]"))

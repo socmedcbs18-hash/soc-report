@@ -173,4 +173,7 @@ def apply_rule_mapping(df, name_col="Summary", mitre_col="Incident MITRE", kc_co
     df["_Severity_Rek"] = out["sev"]
     df["_Mapping_Rule"] = out["rule"]
     df["_Test_Ticket"] = out["test"]
+    if replace:
+        from core.ticket_context import apply_ticket_context
+        apply_ticket_context(df, mitre_col, kc_col)
     return df

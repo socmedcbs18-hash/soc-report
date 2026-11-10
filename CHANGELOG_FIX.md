@@ -2712,3 +2712,15 @@ Sumber: MOM dengan manajemen (gap tiket vs alert; MTTD dihapus; matriks MTTR/MTT
 - Dampak: tahap Command & Control = Critical, sehingga tiket Kill Chain Critical Oktober naik dari 560 menjadi 680.
 - Rule berstatus "Perlu review SPL" (Check Point ESG Anomaly, Cynet Process Monitoring/Decoy, HSM Payshield, dll; 118 tiket Sept-Okt) tetap memakai label asli karena belum ada label rekomendasi.
 - Test baru `TestProposedLabels`.
+
+## 120. Konteks tiket: Actions on Objectives tidak lagi menghitung unduhan internal sebagai eksfiltrasi
+
+Temuan (dari review laporan AOO): 22 dari 26 tiket O365 Exfiltration berstatus True Positive adalah akun @alto.id yang mengunduh file kerja; rule Cynet "Unauthorized File Operation Attempt" di-mapping ke T1485 untuk semua tiket padahal sub-rule di Description berbeda-beda.
+
+- Modul baru `core/ticket_context.py`, dipanggil dari `apply_rule_mapping` bila kolom `Description` ada. Kolom baru `_Konteks_Tiket`; `_Label_Source` = "mapping v2.2 + konteks tiket".
+- O365 Exfiltration via File (Download/Sync): akun di luar @alto.id atau tautan anonim -> tetap Actions on Objectives; akun @alto.id + FileDownloaded -> teknik T1530 dicatat tetapi bukan tahap Kill Chain; akun @alto.id + FileSyncDownloadedFull -> label kosong; tiket tanpa identitas (email awal September) -> label rule dipertahankan dan diberi catatan belum terverifikasi.
+- Anomaly File Operation: teknik T1213 dicatat, bukan tahap Kill Chain.
+- Cynet Unauthorized File Operation: Credentials Theft -> TA0006/T1555(.003), Exploitation; Ransomware Extension -> TA0040/T1486, Actions on Objectives; sub-rule lain -> kosong + perlu review.
+- Dampak Sept-Okt: tiket Actions on Objectives 148 -> 61 (True Positive 31 -> 6); Critical Sept 449 -> 430, Okt 680 -> 614.
+- Batasan: bukti hanya dari isi Description (identitas akun, jenis aktivitas); akun internal yang disusupi tidak bisa dibedakan dari unduhan sah tanpa data tambahan (IP, lokasi, perangkat).
+- Test: 5 test baru (`TestTicketContext`).
