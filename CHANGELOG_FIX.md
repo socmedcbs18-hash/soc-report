@@ -2751,3 +2751,9 @@ Temuan: grafik Kill Chain tidak menyempit karena (a) 51 rule percobaan gagal/dib
 ## 124. Peringatan tiket belum di-Triage pada filter True Positive
 
 Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 530 (54%) belum di-Triage, sedangkan Oktober 100% ter-triage. Filter "True Positive saja" pada September karena itu bias (Reconnaissance 8 vs Delivery 104), bukan salah mapping. Ditambah st.warning bila >20% tiket belum di-Triage; label radio menjadi "v2.3".
+
+## 125. Severity Critical hanya untuk tiket terkonfirmasi; toggle Alert Splunk; catatan MTTR/MTTC/MTTRV
+
+- `add_effective_severity`: tahap >= Exploitation menaikkan ke Critical HANYA bila tiket terkonfirmasi (Triage True Positive atau Cause Code Breach - Reported). Tiket belum terkonfirmasi memakai severity asli. Tanpa kolom Triage: perilaku lama. Test `TestConfirmedSeverity`. Sebab: Cyberark PTA (74 tiket, 82% False Positive) menjadi Critical dan dapat memicu CSIRT tanpa bukti. Sumber lain: severity alert Splunk PTA = critical (50 dari 55 tiket Critical Ivanti Sept-Okt).
+- Sidebar: toggle "Tampilkan data Alert Splunk" (default mati). Mati = sembunyikan Total Alert, Detection Rate, Conversion/Gap/Signal-to-Noise, dan komponen Detection Rate pada Risk Score (bobot dihitung ulang dari komponen lain).
+- Ticket Performance: label periode, tabel MTTR/MTTC/MTTRV (rata-rata, median, sumber waktu, jumlah tiket).

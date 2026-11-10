@@ -912,6 +912,11 @@ else:
     st.sidebar.caption("Belum ada laporan tersimpan. Upload & generate minimal 1x dulu di bawah.")
 
 st.sidebar.divider()
+show_alert = st.sidebar.toggle(
+    "Tampilkan data Alert Splunk", value=False, key="show_splunk_alert",
+    help="Alert Splunk tidak 1:1 dengan tiket Ivanti (hanya alert yang memicu aksi tiket yang masuk Ivanti). "
+         "Aktifkan hanya bila ingin melihat volume alert, Conversion/Detection Rate, dan gap rule.")
+st.sidebar.divider()
 st.sidebar.subheader("➕ Upload Data Baru / Update")
 st.sidebar.caption("Cuma perlu kalau ada bulan BARU yang belum pernah diupload, atau mau update data bulan yang sama.")
 
@@ -1300,7 +1305,7 @@ if current_page == "📋 Executive Summary":
         # Komponen B: Tren Detection Rate vs bulan lalu
         mc_top = report.get("monthly_comparison")
         comp_b, delta_text = None, ""
-        if mc_top is not None and len(mc_top) >= 2:
+        if show_alert and mc_top is not None and len(mc_top) >= 2:
             last2 = mc_top.sort_values("Period_End").tail(2)
             prev_rate, now_rate = last2.iloc[0]["Detection_Rate_%"], last2.iloc[1]["Detection_Rate_%"]
             diff = round(now_rate - prev_rate, 2)
@@ -1360,6 +1365,8 @@ if current_page == "📋 Executive Summary":
             st.caption("Ambang: ≤30 Low Risk, 30-60 Medium Risk, >60 High Risk - bisa disesuaikan "
                        "kalau BoD punya standar risk appetite sendiri.")
 
+        if not show_alert:
+            hyp = hyp[~hyp["Hipotesis"].str.contains("Conversion Rate|Gap Rules|Signal-to-Noise", na=False)]
         top_findings = hyp.head(3)
         if len(top_findings) > 0:
             with st.expander("📝 Ringkasan Temuan Utama (klik untuk lihat)", expanded=True):
@@ -1392,13 +1399,13 @@ if current_page == "📋 Executive Summary":
         elif len(mc_filtered) == 1:
             st.info(f"Cuma 1 bulan dipilih ({mc_filtered.iloc[0]['Period']}) - centang bulan lain "
                     "juga untuk membandingkan tren.")
-            show_metrics(pd.DataFrame([
-                {"Metric": "Total Alert", "Value": int(mc_filtered.iloc[0]["Total_Alert"])},
-                {"Metric": "Total Incident", "Value": int(mc_filtered.iloc[0]["Total_Incident"])},
-            ]), cols=2)
+            show_metrics(pd.DataFrame(
+                ([{"Metric": "Total Alert", "Value": int(mc_filtered.iloc[0]["Total_Alert"])}] if show_alert else [])
+                + [{"Metric": "Total Incident", "Value": int(mc_filtered.iloc[0]["Total_Incident"])}]
+            ), cols=2 if show_alert else 1)
         else:
-            st.markdown("**Total Alert & Incident per Month**")
-            plot_bar_multi(mc_filtered, "Period", ["Total_Alert", "Total_Incident"])
+            st.markdown("**Total Alert & Incident per Month**" if show_alert else "**Total Incident per Month**")
+            plot_bar_multi(mc_filtered, "Period", ["Total_Alert", "Total_Incident"] if show_alert else ["Total_Incident"])
     elif mc is not None and len(mc) == 1:
         st.info(f"ℹ️ Baru 1 periode tersimpan ({mc.iloc[0]['Period']}). Upload & generate bulan lain "
                 "untuk mulai melihat tren perbandingan.")
@@ -1421,12 +1428,31 @@ if current_page == "📋 Executive Summary":
             st.warning("⚠️ Laporan ini dari skema versi lama (belum ada data breach per-severity) - "
                        "generate ulang periode ini untuk data terbaru.")
 
-        c0a, c0b, c0c = st.columns(3)
+        st.caption(f"📅 Periode: **{st.session_state.get('period_label') or '-'}** - laporan yang sedang dibuka "
+                   "(satu bulan saja, tidak mengikuti pilihan bulan di bagian Tren di atas).")
+        c0a, c0b, c0c = st.columns(3 if show_alert else 2)
         c0a.metric("Total Tiket", int(overall_sla.get("Jumlah_Tiket", 0)))
         pct_breach = overall_sla.get("%_Breach", "-")
         c0b.metric("% Breach", f"{pct_breach}%" if pct_breach != "-" else "-")
-        detection_rate = exec_df[exec_df["Metric"] == "Detection Rate"]["Value"].values
-        c0c.metric("Detection Rate", detection_rate[0] if len(detection_rate) else "-")
+        if show_alert:
+            detection_rate = exec_df[exec_df["Metric"] == "Detection Rate"]["Value"].values
+            c0c.metric("Detection Rate", detection_rate[0] if len(detection_rate) else "-")
+
+        _f = lambda v: f"{float(v):g} menit" if pd.notna(pd.to_numeric(v, errors="coerce")) else "-"
+        _n = lambda c: int(pd.to_numeric(overall_sla.get(c, 0), errors="coerce") or 0)
+        _g = lambda c: overall_sla.get(c, float("nan"))
+        st.markdown("**Waktu Penanganan (periode ini)**")
+        st.dataframe(pd.DataFrame([
+            {"Metrik": "MTTR - Respon", "Rata-rata": _f(_g("Avg_MTTR_menit")), "Median": "-",
+             "Dihitung dari": "Created On → Active DateTime", "Tiket": str(_n("Tiket_Dinilai_SLA")),
+             "Target": "≤ 5 menit"},
+            {"Metrik": "MTTC - Containment", "Rata-rata": _f(_g("Avg_MTTC_menit")), "Median": _f(_g("Median_MTTC_menit")),
+             "Dihitung dari": "Active DateTime → Contained On", "Tiket": str(_n("Tiket_Contained")), "Target": "-"},
+            {"Metrik": "MTTRV - Resolusi", "Rata-rata": _f(_g("Avg_MTTRV_menit")), "Median": _f(_g("Median_MTTRV_menit")),
+             "Dihitung dari": "Contained On → Resolved On", "Tiket": "≤ " + str(_n("Tiket_Contained")), "Target": "-"},
+        ]), hide_index=True, use_container_width=True)
+        st.caption("MTTC dan MTTRV hanya dari tiket yang punya Contained On. Median lebih mewakili kondisi umum "
+                   "bila ada beberapa tiket yang sangat lama.")
 
         c1, c2 = st.columns([3, 2])
         with c1:
@@ -1850,11 +1876,13 @@ if current_page == "📊 Perbandingan Bulanan":
             "untuk periode lain (mis. Juni) supaya perbandingan mulai muncul di sini."
         )
     else:
-        st.markdown("**Perbandingan Total Alert & Insiden**")
-        plot_bar_multi(mc, "Period", ["Total_Alert", "Total_Incident"])
-        st.markdown("**Detection Rate per Periode**")
-        plot_line(mc, "Period", ["Detection_Rate_%"])
-        st.dataframe(mc, use_container_width=True)
+        st.markdown("**Perbandingan Total Alert & Insiden**" if show_alert else "**Perbandingan Total Insiden**")
+        plot_bar_multi(mc, "Period", ["Total_Alert", "Total_Incident"] if show_alert else ["Total_Incident"])
+        if show_alert:
+            st.markdown("**Detection Rate per Periode**")
+            plot_line(mc, "Period", ["Detection_Rate_%"])
+        st.dataframe(mc if show_alert else mc.drop(columns=[c for c in ["Total_Alert", "Detection_Rate_%"] if c in mc.columns]),
+                     use_container_width=True)
 
     sev_trend = report.get("severity_trend")
     if sev_trend is not None and len(sev_trend) >= 2:

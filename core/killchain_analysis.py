@@ -44,14 +44,20 @@ def normalize_severity(value):
 
 
 def add_effective_severity(df):
-    """Tambah _Severity_Norm, _Stage_Tertinggi, _Severity_Efektif, _Severity_Naik.
-    _Severity_Efektif = Critical bila tiket punya tahap >= Exploitation; selain itu
-    sama dengan severity asli. _Severity_Naik = True kalau efektif > asli."""
+    """Tambah _Severity_Norm, _Stage_Critical, _Severity_Efektif, _Severity_Naik.
+    _Severity_Efektif = Critical bila tiket punya tahap >= Exploitation DAN terkonfirmasi (Triage True Positive
+    atau Cause Code Breach - Reported). Tiket yang belum terkonfirmasi tetap memakai severity aslinya: Critical
+    memicu CSIRT, jadi tidak boleh naik hanya dari label rule. Bila data tidak punya kolom Triage sama sekali
+    (export lama), perilaku lama dipakai. _Severity_Naik = True kalau efektif > asli."""
     df = df.copy()
     sev_col = "Severity" if "Severity" in df.columns else None
     df["_Severity_Norm"] = df[sev_col].map(normalize_severity) if sev_col else "Tidak diketahui"
     stages_col = df["_KillChain_Stages"] if "_KillChain_Stages" in df.columns else pd.Series([[]] * len(df), index=df.index)
     crit = stages_col.map(lambda L: any(_STAGE_KEY.get(str(x).lower(), x) in CRITICAL_STAGES for x in L))
+    if "_Triage" in df.columns:
+        _tri = df["_Triage"].astype(str).str.lower().str.startswith("true")
+        _cc = df["Cause Code"].astype(str).str.lower().str.startswith("breach") if "Cause Code" in df.columns else pd.Series(False, index=df.index)
+        crit = crit & (_tri | _cc)
     df["_Stage_Critical"] = crit
     eff = []
     for sev, c in zip(df["_Severity_Norm"], crit):

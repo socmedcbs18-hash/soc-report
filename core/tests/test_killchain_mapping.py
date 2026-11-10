@@ -226,3 +226,15 @@ class TestOutcomeStage(unittest.TestCase):
         from core.outcome_stage import refine_outcome
         self.assertEqual(refine_outcome("", "Breach - Reported", "[x]", "[Exploitation]")[1], "[Exploitation]")
         self.assertEqual(refine_outcome("True Positive", "", "[x]", "[Exploitation]")[1], "[Exploitation]")
+
+
+class TestConfirmedSeverity(unittest.TestCase):
+    def test_untriaged_exploitation_not_raised_to_critical(self):
+        df = pd.DataFrame({
+            "Severity": ["high", "high", "high", "high"],
+            "_KillChain_Stages": [["Exploitation"]] * 4,
+            "_Triage": ["True Positive", "Unknown", "False Positive", "Unknown"],
+            "Cause Code": ["", "", "", "Breach - Reported"],
+        })
+        o = add_effective_severity(df)
+        self.assertEqual(o["_Severity_Efektif"].tolist(), ["Critical", "High", "High", "Critical"])
