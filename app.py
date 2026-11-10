@@ -1555,6 +1555,9 @@ if current_page == "📋 Executive Summary":
             st.caption(f"Triage keseluruhan periode ini: **{tp_pct}% True Positive**, **{fp_pct}% False Positive** "
                        f"- chart di bawah {'HANYA menghitung True Positive' if filter_tp_only else 'menghitung SEMUA tiket (termasuk False Positive)'}.")
 
+        _untri = round(100 - float(tp_pct) - float(fp_pct), 1)
+        if filter_tp_only and _untri > 20:
+            st.warning(f"⚠️ {_untri}% tiket periode ini belum di-Triage. Filter True Positive hanya memakai sisanya, jadi bentuk grafik bisa bias. Matikan filter untuk melihat semua tiket.")
         mitre_df = enriched_raw[enriched_raw["_Triage"] == "True Positive"] if filter_tp_only else enriched_raw
         if filter_tp_only and len(mitre_df) == 0:
             st.warning("⚠️ Tidak ada insiden True Positive di periode ini - matikan filter untuk lihat semua tiket.")
@@ -1572,7 +1575,7 @@ if current_page == "📋 Executive Summary":
         mitre_df = mitre_df[~mitre_df["_Test_Ticket"].fillna(False).astype(bool)]
     _has_dual = len(mitre_df) > 0 and "_KillChain_Stages_Tiket" in mitre_df.columns
     if _has_dual:
-        _opts = ["Mapping tervalidasi (v2.2)", "Label Ivanti apa adanya"]
+        _opts = ["Mapping tervalidasi (v2.3)", "Label Ivanti apa adanya"]
         _src = st.radio("Sumber label Kill Chain & MITRE", _opts, horizontal=True,
                         index=0 if KILLCHAIN_LABEL_SOURCE == "mapping" else 1, key="mitre_label_source_radio")
         if _src == _opts[1]:

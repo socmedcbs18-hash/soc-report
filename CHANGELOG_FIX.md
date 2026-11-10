@@ -2747,3 +2747,7 @@ Temuan: grafik Kill Chain tidak menyempit karena (a) 51 rule percobaan gagal/dib
 - `utils/ui_theme.py` (baru): CSS global (kartu KPI, tab, tabel, expander, mode gelap) dan `install_compact_captions` - caption >110 karakter tampil 1 kalimat + ikon ⓘ, teks lengkap di tooltip. Dipanggil sekali di `app.py` setelah `set_page_config`. Tidak ada teks dihapus.
 - Semua teks "MTTD tidak dipakai" dihapus dari UI dan catatan laporan.
 - Batasan: UI belum dijalankan di sandbox (Streamlit tidak bisa dipasang); hanya logika `ui_theme` yang diuji dengan stub.
+
+## 124. Peringatan tiket belum di-Triage pada filter True Positive
+
+Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 530 (54%) belum di-Triage, sedangkan Oktober 100% ter-triage. Filter "True Positive saja" pada September karena itu bias (Reconnaissance 8 vs Delivery 104), bukan salah mapping. Ditambah st.warning bila >20% tiket belum di-Triage; label radio menjadi "v2.3".
