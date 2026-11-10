@@ -2763,3 +2763,7 @@ Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 5
 - NTA DDoS, Web Monitoring - Anomaly High Traffic (AKR dan non-AKR), dan O365 Email Hard Delete Excessive Volume: teknik MITRE (T1498/T1070.008/T1485) dicatat, tahap Kill Chain dikosongkan (Impact/ketersediaan atau 100% False Positive, bukan progres intrusi). CSV v2.4.
 - `add_effective_severity`: severity asli Critical dari alert Splunk yang belum terkonfirmasi (bukan True Positive / Breach Reported) ditampilkan High, sehingga tidak memicu CSIRT. Sept-Okt: Critical efektif September 38, Oktober 45 (seluruhnya terkonfirmasi).
 - Test: `TestImpactNotStage`, tambahan `TestConfirmedSeverity`.
+
+## 127. Perbaikan: ValueError st.columns pada Ticket Performance saat toggle Alert Splunk mati
+
+`c0a, c0b, c0c = st.columns(3 if show_alert else 2)` -> selalu `st.columns(3)` (kolom ketiga hanya diisi bila toggle aktif). Blok tabel Waktu Penanganan diuji dengan stub Streamlit.

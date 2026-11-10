@@ -1430,7 +1430,7 @@ if current_page == "📋 Executive Summary":
 
         st.caption(f"📅 Periode: **{st.session_state.get('period_label') or '-'}** - laporan yang sedang dibuka "
                    "(satu bulan saja, tidak mengikuti pilihan bulan di bagian Tren di atas).")
-        c0a, c0b, c0c = st.columns(3 if show_alert else 2)
+        c0a, c0b, c0c = st.columns(3)
         c0a.metric("Total Tiket", int(overall_sla.get("Jumlah_Tiket", 0)))
         pct_breach = overall_sla.get("%_Breach", "-")
         c0b.metric("% Breach", f"{pct_breach}%" if pct_breach != "-" else "-")
