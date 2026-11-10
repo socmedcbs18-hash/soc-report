@@ -2741,3 +2741,9 @@ Temuan: grafik Kill Chain tidak menyempit karena (a) 51 rule percobaan gagal/dib
 - Temuan data: di Sept-Okt Cause Code hanya terisi pada tiket yang belum di-Triage (Prevented 82, Breach 118); 760 tiket True Positive tanpa Cause Code.
 - Sebaran Sept-Okt (potensi rule -> terkonfirmasi): Recon 495->365, Delivery 688->431, Exploitation 290->109, Installation 120->37, C2 2->2, AOO 61->27.
 - Test baru `TestOutcomeStage`. Batasan: Cause Code dipakai apa adanya (diisi manual analyst).
+
+## 123. Tampilan: tema kartu KPI/tab/tabel + caption ringkas; hapus sisa teks MTTD
+
+- `utils/ui_theme.py` (baru): CSS global (kartu KPI, tab, tabel, expander, mode gelap) dan `install_compact_captions` - caption >110 karakter tampil 1 kalimat + ikon ⓘ, teks lengkap di tooltip. Dipanggil sekali di `app.py` setelah `set_page_config`. Tidak ada teks dihapus.
+- Semua teks "MTTD tidak dipakai" dihapus dari UI dan catatan laporan.
+- Batasan: UI belum dijalankan di sandbox (Streamlit tidak bisa dipasang); hanya logika `ui_theme` yang diuji dengan stub.

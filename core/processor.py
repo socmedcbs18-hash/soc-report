@@ -342,7 +342,7 @@ class SOCProcessor:
              "Matriks performa SOC sesuai CSOC State Machine: MTTR = Created -> Active (SLA 5 menit; breach bila lebih), "
              "MTTC = Active -> Contained, MTTRV = Contained -> Resolved; dipecah per Priority dan per Severity. "
              "MTTC/MTTRV hanya dari tiket yang punya timestamp 'Contained On' (cakupan: Tiket_Contained/%_Contained). "
-             "MTTD tidak dipakai (MOM manajemen).",
+             "",
              "Timestamp Created On, Active DateTime, Contained On, Resolved On, Closed On dari export Ivanti "
              "(fallback ke 'Duration Active/Resolved (Minutes)' bila timestamp tidak ada).",
              "'Seberapa cepat SOC merespons dan menyelesaikan insiden - per tingkat prioritas dan severity?'"),
@@ -1218,7 +1218,6 @@ class SOCProcessor:
     # =====================================================
     # SLA METRICS (BARU) - state machine: Logged -> Active -> Contained -> Resolved
     # =====================================================
-    # MTTD  = DIHAPUS dari report (MOM manajemen Nov 2026).
     # MTTR  = Created On -> Active ('Duration Active (Minutes)', dihitung Ivanti).
     # MTTC  = Created On -> Contained On (kolom timestamp 'Contained On' di export Ivanti terbaru;
     #         kolom 'Contained' berisi teks catatan tindakan, tidak dipakai untuk hitungan).
@@ -1298,7 +1297,7 @@ class SOCProcessor:
                "Median ikut ditampilkan karena rata-rata terdongkrak outlier). " if mttrv_state else
                "MTTRV = Created -> Resolved karena data tidak punya Contained On (MTTC tidak tampil). ")
             + "Avg_Resolusi_Total_menit = Created -> Resolved (seluruh umur tiket sampai selesai). "
-            "MTTD tidak dipakai (MOM manajemen). Tiket tanpa timestamp Active tidak dinilai breach "
+            " Tiket tanpa timestamp Active tidak dinilai breach "
             "(Tiket_Dinilai_SLA). "
             + ("Breach_Menurut_Ivanti = flag breach bawaan Ivanti, dipakai sebagai pembanding "
                "(lihat sheet Sla State Quality)." if has_precomputed_breach else "")

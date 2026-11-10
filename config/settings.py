@@ -53,7 +53,7 @@ WEEK_END_DAY = "Saturday"
 # SLA Response Time
 SLA_MTTR_SECONDS = 300
 
-# MOM manajemen (Nov 2026): MTTD tidak dipakai di report. MTTC (Created On -> Contained On) tampil
+# MOM manajemen (Nov 2026): MTTC (Created On -> Contained On) tampil
 # bila kolom 'Contained On' ada dan terisi di data Ivanti (export Sept-Okt 2026 versi _1 sudah ada).
 # Jika kolom tidak ada, MTTC otomatis disembunyikan. Set False untuk menyembunyikan paksa.
 SHOW_MTTC = True

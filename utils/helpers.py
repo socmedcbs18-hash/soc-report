@@ -119,7 +119,7 @@ def normalize_incident_columns(df):
     sendiri - dipakai LANGSUNG, tidak dihitung ulang dari nol lagi.
 
     Field yang TIDAK ADA lagi di skema baru (dibanding sebelumnya): "Alert
-    Time". MTTD sudah dikeluarkan dari report (MOM manajemen Nov 2026)."""
+    Time"."""
     import pandas as pd
 
     df = df.copy()

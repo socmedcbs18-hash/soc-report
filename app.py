@@ -36,7 +36,10 @@ from core.killchain_analysis import (
     build_label_source_summary, build_rule_category_summary, use_ticket_labels,
 )
 
-st.set_page_config(page_title="SOC Report Generator", layout="wide")
+st.set_page_config(page_title="SOC Report Generator", layout="wide", page_icon="🛡️")
+from utils.ui_theme import inject_css, install_compact_captions
+inject_css(st)
+install_compact_captions(st)
 
 # =========================================================
 # REPORT SELECTION GATE (BARU) - satu-satunya blok yang disisipkan untuk
@@ -464,7 +467,7 @@ def plot_line(df, x_col, y_cols, title=None):
 
 def plot_radar(df, category_col, value_cols, title=None, normalize=True):
     """Radar/spider chart - 1 baris = 1 garis di radar (mis. 1 baris per
-    tier Priority), tiap sumbu = 1 metrik (mis. MTTD/MTTR/MTTRV). Kalau
+    tier Priority), tiap sumbu = 1 metrik (mis. MTTR/MTTC/MTTRV). Kalau
     nilainya makin tinggi, garis makin menjorok keluar/lancip ke arah itu -
     gampang lihat mana yang paling menonjol/bermasalah sekilas pandang.
 
@@ -1434,7 +1437,7 @@ if current_page == "📋 Executive Summary":
             if len(radar_cols) >= 2:
                 plot_bar_multi_sla(radar_df, "Priority_Label", radar_cols)
             st.caption("State machine CSOC: MTTR = Created → Active (SLA 5 menit), MTTC = Active → Contained, "
-                       "MTTRV = Contained → Resolved. MTTD tidak dipakai. MTTC/MTTRV hanya dari tiket yang "
+                       "MTTRV = Contained → Resolved. MTTC/MTTRV hanya dari tiket yang "
                        "punya Contained On - lihat Tiket_Contained.")
         with c2:
             st.markdown("**Meet vs Breach**")
@@ -2235,7 +2238,7 @@ if current_page == "Efektivitas":
         st.markdown("### SLA Metrics (State Machine: Logged → Active → Contained → Resolved)")
         st.info(
             "**Matriks performa (CSOC State Machine)**: MTTR = Created → Active (respons, SLA 5 menit), "
-            "MTTC = Active → Contained, MTTRV = Contained → Resolved. MTTD tidak dipakai (MOM manajemen). "
+            "MTTC = Active → Contained, MTTRV = Contained → Resolved. "
             + ("MTTC dan MTTRV dihitung hanya untuk tiket yang punya timestamp Contained On "
                "(lihat Tiket_Contained / %_Contained untuk cakupannya)." if SHOW_MTTC else "")
         )
@@ -2313,7 +2316,7 @@ if current_page == "KPI Analyst":
     st.info(
         "**Take** = Total_Incident/Task diambil. **MTTR** = Created On → Responded On (Logged→Active). "
         "**MTTC** = Active → Contained On, **MTTRV** = Contained On → Resolved On (hanya tiket yang punya "
-        "timestamp Contained On; lihat Tiket_Contained). Breach = MTTR lebih dari 5 menit. MTTD tidak dipakai."
+        "timestamp Contained On; lihat Tiket_Contained). Breach = MTTR lebih dari 5 menit."
     )
     show_insights(["H-KPI"])
     kpi_full = report["soc_individual_kpi"]
