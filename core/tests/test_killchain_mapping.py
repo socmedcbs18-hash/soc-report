@@ -141,7 +141,7 @@ class TestStateMachineDurations(unittest.TestCase):
 
 
 class TestProposedLabels(unittest.TestCase):
-    NAME = "Infrastructure - [ALTO-ESV3] WebMoni - Public IP Traffic Detection - Rule"
+    NAME = "Infrastructure - [ALTO-ESV3] AKR Repeated Denied Access to ADAMA & WEBMONI - Rule"
 
     def test_proposed_rule_label_applied_and_flagged(self):
         import core.rule_mapping as rm
@@ -150,7 +150,7 @@ class TestProposedLabels(unittest.TestCase):
         try:
             rm._APPLY_PROPOSED = True
             o = rm.apply_rule_mapping(d)
-            self.assertEqual(o.loc[0, "Incident KillChain"], "[Command & Control]")
+            self.assertEqual(o.loc[0, "Incident KillChain"], "[Reconnaissance]")
             self.assertEqual(o.loc[0, "_Label_Source"], rm.SRC_PROPOSED)
             rm._APPLY_PROPOSED = False
             o = rm.apply_rule_mapping(d)
@@ -192,3 +192,19 @@ class TestTicketContext(unittest.TestCase):
         self.assertEqual(self._r(rule, d)[1], "[Actions on Objectives]")
         d = "Rule Name IOF - Tar - Extracting Files From Remote Host  Process Command Line x"
         self.assertEqual(self._r(rule, d)[:2], ("[]", "[]"))
+
+
+class TestOutcomeAwareStaging(unittest.TestCase):
+    def _kc(self, name):
+        import core.rule_mapping as rm
+        d = pd.DataFrame({"Summary": [name], "Incident MITRE": ["[]"], "Incident KillChain": ["[Exploitation]"]})
+        return rm.apply_rule_mapping(d).loc[0, "Incident KillChain"]
+
+    def test_failed_or_blocked_attempt_is_delivery_not_exploitation(self):
+        for n in ["Applications - [ESV3] - O365 High Number Of Failed Authentications for User - Rule",
+                  "Infrastructure - [ALTO-ESV3] Akamai WAF - SQL Injection Attempt Detected. - Rule"]:
+            self.assertEqual(self._kc(n), "[Delivery]", n)
+
+    def test_webmoni_denied_scan_is_reconnaissance(self):
+        self.assertEqual(self._kc("Infrastructure - [ALTO-ESV3] AKR - WebMoni - Public IP Traffic Detection - Rule"),
+                         "[Reconnaissance]")

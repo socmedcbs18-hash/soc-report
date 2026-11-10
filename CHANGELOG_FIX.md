@@ -2724,3 +2724,13 @@ Temuan (dari review laporan AOO): 22 dari 26 tiket O365 Exfiltration berstatus T
 - Dampak Sept-Okt: tiket Actions on Objectives 148 -> 61 (True Positive 31 -> 6); Critical Sept 449 -> 430, Okt 680 -> 614.
 - Batasan: bukti hanya dari isi Description (identitas akun, jenis aktivitas); akun internal yang disusupi tidak bisa dibedakan dari unduhan sah tanpa data tambahan (IP, lokasi, perangkat).
 - Test: 5 test baru (`TestTicketContext`).
+
+## 121. Staging sadar-hasil (outcome-aware): percobaan gagal/diblokir = Delivery, WebMoni = Reconnaissance
+
+Temuan: grafik Kill Chain tidak menyempit karena (a) 51 rule percobaan gagal/diblokir (WAF XSS/SQLi/Command Injection, failed login/brute force O365/AWS/VPN/RDP, IPS/IDPS attempt, Cyberark failure) diberi tahap Exploitation padahal tidak ada bukti eksploitasi berhasil; (b) "WebMoni - Public IP Traffic Detection" diberi C2/T1071 padahal isi tiket `actions: deny` dengan ratusan port tujuan = pemindaian.
+
+- `config/data/rule_killchain_mitre.csv` (v2.3): 51 rule Exploitation -> Delivery (MITRE tidak diubah); 2 rule WebMoni -> Reconnaissance TA0043/T1595.001; status "Siap diterapkan" (turunan definisi, tidak perlu SPL). Rule login berhasil/anomali (AWS new user, Cyberark PTA, Cynet Malicious Script) tetap Exploitation.
+- Dampak Sept-Okt (tiket dengan tahap itu): Delivery 502 -> 688, Exploitation 439 -> 290, C2 120 -> 2; Critical Sept 187, Okt 233.
+- Weaponization = 0 dan Privilege Escalation = 0 wajar: tahap dilakukan di sisi penyerang / tidak ada rule SIEM yang memetakannya.
+- Test baru `TestOutcomeAwareStaging`; test `TestProposedLabels` memakai rule Usulan lain.
+- Batasan: jumlah tiket per tahap = sebaran cakupan deteksi, bukan bukti progres serangan; corong sejati butuh korelasi tiket per IP/akun/host.
