@@ -2757,3 +2757,9 @@ Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 5
 - `add_effective_severity`: tahap >= Exploitation menaikkan ke Critical HANYA bila tiket terkonfirmasi (Triage True Positive atau Cause Code Breach - Reported). Tiket belum terkonfirmasi memakai severity asli. Tanpa kolom Triage: perilaku lama. Test `TestConfirmedSeverity`. Sebab: Cyberark PTA (74 tiket, 82% False Positive) menjadi Critical dan dapat memicu CSIRT tanpa bukti. Sumber lain: severity alert Splunk PTA = critical (50 dari 55 tiket Critical Ivanti Sept-Okt).
 - Sidebar: toggle "Tampilkan data Alert Splunk" (default mati). Mati = sembunyikan Total Alert, Detection Rate, Conversion/Gap/Signal-to-Noise, dan komponen Detection Rate pada Risk Score (bobot dihitung ulang dari komponen lain).
 - Ticket Performance: label periode, tabel MTTR/MTTC/MTTRV (rata-rata, median, sumber waktu, jumlah tiket).
+
+## 126. Versi final: DDoS/volume bukan tahap Kill Chain; Critical bawaan Splunk tanpa konfirmasi tampil High
+
+- NTA DDoS, Web Monitoring - Anomaly High Traffic (AKR dan non-AKR), dan O365 Email Hard Delete Excessive Volume: teknik MITRE (T1498/T1070.008/T1485) dicatat, tahap Kill Chain dikosongkan (Impact/ketersediaan atau 100% False Positive, bukan progres intrusi). CSV v2.4.
+- `add_effective_severity`: severity asli Critical dari alert Splunk yang belum terkonfirmasi (bukan True Positive / Breach Reported) ditampilkan High, sehingga tidak memicu CSIRT. Sept-Okt: Critical efektif September 38, Oktober 45 (seluruhnya terkonfirmasi).
+- Test: `TestImpactNotStage`, tambahan `TestConfirmedSeverity`.

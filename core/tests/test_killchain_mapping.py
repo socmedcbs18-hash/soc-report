@@ -238,3 +238,25 @@ class TestConfirmedSeverity(unittest.TestCase):
         })
         o = add_effective_severity(df)
         self.assertEqual(o["_Severity_Efektif"].tolist(), ["Critical", "High", "High", "Critical"])
+
+
+class TestImpactNotStage(unittest.TestCase):
+    def test_ddos_and_volume_rules_keep_technique_without_stage(self):
+        import core.rule_mapping as rm
+        for n in ["Infrastructure - [ALTO-ESV3] Web Monitoring - Anomaly High Traffic - Rule",
+                  "Applications - [ESV3] - O365 Email Hard Delete Excessive Volume - Rule"]:
+            d = pd.DataFrame({"Summary": [n], "Incident MITRE": ["[]"], "Incident KillChain": ["[Actions on Objectives]"]})
+            o = rm.apply_rule_mapping(d)
+            self.assertEqual(o.loc[0, "Incident KillChain"], "[]", n)
+            self.assertNotEqual(o.loc[0, "Incident MITRE"], "[]", n)
+
+
+    def test_unconfirmed_original_critical_capped_to_high(self):
+        df = pd.DataFrame({
+            "Severity": ["critical", "critical", "critical"],
+            "_KillChain_Stages": [[], [], []],
+            "_Triage": ["False Positive", "True Positive", "Unknown"],
+            "Cause Code": ["", "", ""],
+        })
+        o = add_effective_severity(df)
+        self.assertEqual(o["_Severity_Efektif"].tolist(), ["High", "Critical", "High"])

@@ -60,8 +60,18 @@ def add_effective_severity(df):
         crit = crit & (_tri | _cc)
     df["_Stage_Critical"] = crit
     eff = []
-    for sev, c in zip(df["_Severity_Norm"], crit):
-        eff.append("Critical" if c else sev)
+    if "_Triage" in df.columns:
+        _conf = (df["_Triage"].astype(str).str.lower().str.startswith("true")
+                 | (df["Cause Code"].astype(str).str.lower().str.startswith("breach") if "Cause Code" in df.columns else False))
+    else:
+        _conf = pd.Series(True, index=df.index)
+    for sev, c, cf in zip(df["_Severity_Norm"], crit, _conf):
+        if c:
+            eff.append("Critical")
+        elif sev == "Critical" and not cf:
+            eff.append("High")  # Critical dari alert Splunk tanpa konfirmasi analyst: tidak memicu CSIRT
+        else:
+            eff.append(sev)
     df["_Severity_Efektif"] = eff
     df["_Severity_Naik"] = [(_SEV_RANK[e] > _SEV_RANK[a]) for a, e in zip(df["_Severity_Norm"], eff)]
     return df

@@ -264,10 +264,10 @@
   "family": "NTA - DDoS / traffic abnormal",
   "pattern": "ddos attack alert|traffic abnormal",
   "kategori_kode": "S",
-  "cyber_kill_chain": "Actions on Objectives",
+  "cyber_kill_chain": "",
   "mitre_attack": "TA0040, T1498",
   "keyakinan": "Rendah",
-  "alasan": "DDoS: dampak pada ketersediaan layanan. Konsisten dengan rule 'Web Monitoring - Anomaly High Traffic'."
+  "alasan": "DDoS = Impact (T1498) pada ketersediaan, bukan progres intrusi: teknik dicatat, bukan tahap Kill Chain."
  },
  {
   "family": "Forcepoint - ambang kategori internet",

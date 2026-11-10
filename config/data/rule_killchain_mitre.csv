@@ -18,7 +18,7 @@ Applications - [ESV3] - O365 Concurrent Sessions From Different Ips - Rule,Splun
 Applications - [ESV3] - O365 Disable MFA - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Installation,"TA0112, T1556.006",Sedang,Siap diterapkan,critical,,,,S,2.2
 Applications - [ESV3] - O365 Elevated Mailbox Permission Assigned - Rule,SplunkEnterpriseSecuritySuite,3,Perubahan/kebijakan (panel terpisah),N,,,Sedang,Siap diterapkan,,,T1098.002 Additional Email Delegate Permissions,Installation,P,2.2
 Applications - [ESV3] - O365 Email Access By Security Administrator - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Actions on Objectives,"TA0009, T1114.002",Rendah,Siap - tinjau setelah 1 bulan,critical,,,,S,2.2
-Applications - [ESV3] - O365 Email Hard Delete Excessive Volume - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Actions on Objectives,"TA0005, T1070.008, T1485",Sedang,Siap diterapkan,critical,,,,S,2.2
+Applications - [ESV3] - O365 Email Hard Delete Excessive Volume - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,,"TA0005, T1070.008, T1485",Sedang,Siap diterapkan,,,,,S,2.4
 Applications - [ESV3] - O365 Email Reported By Admin Found Malicious - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Delivery,"TA0001, T1566",Tinggi,Siap diterapkan,,,,,S,2.2
 Applications - [ESV3] - O365 Email Reported By User Found Malicious - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Delivery,"TA0001, T1566",Tinggi,Siap diterapkan,,,,,S,2.2
 Applications - [ESV3] - O365 Email Security Feature Changed - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Installation,"TA0112, T1685",Sedang,Siap diterapkan,critical,,,,S,2.2
@@ -68,7 +68,7 @@ Infrastructure - [ALTO-ESV3] AKR - IPS Attack Detected (ADAMA Web Monitoring) - 
 Infrastructure - [ALTO-ESV3] AKR - Malicious Source IP Attempting Access - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Reconnaissance,"TA0043, T1595",Sedang,Siap diterapkan,,,,,S,2.2
 Infrastructure - [ALTO-ESV3] AKR - VPN Brute Force Attempt - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Delivery,"TA0006, T1110",Sedang,Siap diterapkan,,,,,S,2.3
 Infrastructure - [ALTO-ESV3] AKR - VPN Permission Denied - Per User - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Delivery,"TA0006, T1110",Rendah,Siap diterapkan,,,,,S,2.3
-Infrastructure - [ALTO-ESV3] AKR - Web Monitoring - Anomaly High Traffic - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Actions on Objectives,"TA0040, T1498",Rendah,Siap - tinjau setelah 1 bulan,critical,,,,S,2.2
+Infrastructure - [ALTO-ESV3] AKR - Web Monitoring - Anomaly High Traffic - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,,"TA0040, T1498",Rendah,Siap diterapkan,,,,,S,2.4
 Infrastructure - [ALTO-ESV3] AKR - WebMoni - Public IP Traffic Detection - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Reconnaissance,"TA0043, T1595.001",Sedang,Siap diterapkan,,,,,S,2.3
 Infrastructure - [ALTO-ESV3] AKR- IPS Attacked Detected (ADAMA Server) - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Delivery,"TA0001, T1190",Sedang,Siap diterapkan,,,,,S,2.3
 Infrastructure - [ALTO-ESV3] Account Deleted - Rule,SplunkEnterpriseSecuritySuite,3,Perubahan/kebijakan (panel terpisah),N,,,Sedang,Siap diterapkan,,,T1531 Account Access Removal,Actions on Objectives,P,2.2
@@ -232,7 +232,7 @@ Infrastructure - [ALTO-ESV3] WARNING : Add new user Akamai - Rule,SplunkEnterpri
 Infrastructure - [ALTO-ESV3] WARNING : New Security Configuration Akamai - Rule,SplunkEnterpriseSecuritySuite,3,Perubahan/kebijakan (panel terpisah),N,,,Tinggi,Siap diterapkan,,,T1685 Disable or Modify Tools,Installation,P,2.2
 Infrastructure - [ALTO-ESV3] WCG - HTTP 504 Gateway Timeout - Rule,SplunkEnterpriseSecuritySuite,3,Operasional/health (tanpa mapping),N,,,Sedang,Siap diterapkan,,,,,O,2.2
 Infrastructure - [ALTO-ESV3] Warning: WCG High Connection per Second - Rule,SplunkEnterpriseSecuritySuite,3,Operasional/health (tanpa mapping),N,,,Sedang,Siap diterapkan,,,,,O,2.2
-Infrastructure - [ALTO-ESV3] Web Monitoring - Anomaly High Traffic - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Actions on Objectives,"TA0040, T1498",Rendah,Siap - tinjau setelah 1 bulan,critical,,,,S,2.2
+Infrastructure - [ALTO-ESV3] Web Monitoring - Anomaly High Traffic - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,,"TA0040, T1498",Rendah,Siap diterapkan,,,,,S,2.4
 Infrastructure - [ALTO-ESV3] successful_login_outside_indonesia - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Exploitation,"TA0001, T1078",Sedang,Siap diterapkan,critical,Y,,,S,2.2
 Infrastructure - [ESV3] - AWS Console Login Failed During MFA - Rule,SplunkEnterpriseSecuritySuite,3,Serangan (masuk grafik kill chain),Y,Delivery,"TA0006, T1621",Sedang,Siap diterapkan,,,,,S,2.3
 Infrastructure - [ESV3] - AWS CreateLoginProfile - Rule,SplunkEnterpriseSecuritySuite,3,Perubahan/kebijakan (panel terpisah),N,,,Sedang,Siap diterapkan,,,T1098.001 Additional Cloud Credentials,Installation,P,2.2
