@@ -1063,6 +1063,107 @@ def plot_bar_multi_sla(df, category_col, value_cols):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def render_sla_panel(report, key_prefix="sla", detail=False):
+    """Panel SLA sesuai MOM: semua metrik dari Logged, batas per Severity, breach per metrik."""
+    sev_df = report.get("sla_metrics_by_severity")
+    sla_all = report.get("sla_metrics")
+    if sev_df is None or len(sev_df) == 0 or "Batas_MTTC_menit" not in sev_df.columns:
+        st.warning("⚠️ Laporan ini dibuat dengan skema SLA lama - generate ulang periode ini "
+                   "(upload file yang sama + klik Generate) untuk SLA per Severity sesuai MOM.")
+        return
+    ov = sla_all[sla_all["Priority_Label"] == "SEMUA"].iloc[0]
+    _p = lambda c: (f"{ov.get(c)}%" if pd.notna(ov.get(c)) else "-")
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Total Tiket", int(ov.get("Jumlah_Tiket", 0)))
+    k2.metric("Breach MTTR (>5 mnt)", _p("%_Breach_MTTR"))
+    k3.metric("Breach MTTC", _p("%_Breach_MTTC"))
+    k4.metric("Breach MTTRV", _p("%_Breach_MTTRV"))
+
+    st.markdown("**Batas SLA & Realisasi per Severity** (semua dihitung dari Logged)")
+    t = sev_df.copy()
+    show = pd.DataFrame({
+        "Severity": t["Severity"], "Tiket": t["Jumlah_Tiket"],
+        "Batas MTTR": t["Batas_MTTR_menit"].map(lambda v: f"{v:g} mnt" if pd.notna(v) else "-"),
+        "Batas MTTC": t["Batas_MTTC_menit"].map(lambda v: f"{v:g} mnt" if pd.notna(v) else "-"),
+        "Batas MTTRV": t["Batas_MTTRV_menit"].map(lambda v: f"{v:g} mnt" if pd.notna(v) else "-"),
+        "Rata² MTTR": t["Avg_MTTR_menit"], "Rata² MTTC": t.get("Avg_MTTC_menit"), "Median MTTC": t.get("Median_MTTC_menit"),
+        "Rata² MTTRV": t["Avg_MTTRV_menit"], "Median MTTRV": t["Median_MTTRV_menit"],
+        "Breach MTTR": t["Breach_MTTR"], "Breach MTTC": t.get("Breach_MTTC"), "Breach MTTRV": t["Breach_MTTRV"],
+        "Tiket Breach": t["Jumlah_Breach"], "% Breach": t["%_Breach"].map(lambda v: f"{v}%" if pd.notna(v) else "-"),
+    })
+    st.dataframe(show, hide_index=True, use_container_width=True)
+    st.caption("MTTR = Created → Active. MTTC = Created → Contained On (batas = SLA MTTC + 5 menit respons). "
+               "MTTRV = Created → Resolved On (batas = Total Time). MTTC hanya untuk tiket yang punya Contained On "
+               "(median ikut ditampilkan karena rata-rata terdongkrak tiket yang sangat lama).")
+    src = report.get("sla_severity_source")
+    if src is not None and len(src) > 0 and (src["Sumber"].astype(str).str.startswith("Priority").any()):
+        n_p = int(src[src["Sumber"].astype(str).str.startswith("Priority")]["Jumlah"].sum())
+        st.caption(f"ℹ️ {n_p} tiket tidak punya Severity baku; SLA-nya memakai Priority Ivanti sebagai pengganti.")
+
+    c1, c2 = st.columns([3, 2])
+    with c1:
+        st.markdown("**Rata-rata waktu per Severity (menit)**")
+        cols = [c for c in ["Avg_MTTR_menit", "Avg_MTTC_menit", "Avg_MTTRV_menit"] if c in sev_df.columns]
+        if len(cols) >= 2:
+            plot_bar_multi_sla(sev_df, "Severity", cols)
+    with c2:
+        st.markdown("**Meet vs Breach**")
+        nb = int(ov.get("Jumlah_Breach", 0)); nt = int(ov.get("Tiket_Dinilai_SLA", ov.get("Jumlah_Tiket", 0)))
+        plot_pie(pd.DataFrame({"Status": ["Meet", "Breach"], "Jumlah": [max(nt - nb, 0), nb]}), "Status", "Jumlah", semantic=False)
+
+    render_breach_explorer(report, key_prefix=key_prefix, detail=detail)
+
+
+def render_breach_explorer(report, key_prefix="sla", detail=False):
+    """Tiket yang breach: insiden penyebab & filter Severity / jenis breach (permintaan MOM)."""
+    det = report.get("sla_breach_detail")
+    if det is None or len(det) == 0:
+        st.success("✅ Tidak ada tiket yang breach SLA pada periode ini.")
+        return
+    st.markdown("**🚨 Tiket yang Breach - insiden apa penyebabnya?**")
+    sev_opts = [x for x in ["Critical", "High", "Medium", "Low", "Tidak diketahui"] if x in set(det["Severity"])]
+    f1, f2 = st.columns(2)
+    sev_sel = f1.multiselect("Severity", sev_opts, default=sev_opts, key=f"{key_prefix}_breach_sev")
+    jenis_sel = f2.multiselect("Jenis breach", ["MTTR", "MTTC", "MTTRV"], default=["MTTR", "MTTC", "MTTRV"],
+                               key=f"{key_prefix}_breach_jenis")
+    d = det[det["Severity"].isin(sev_sel)]
+    if jenis_sel:
+        d = d[d["Jenis_Breach"].map(lambda x: any(j in str(x).split(", ") for j in jenis_sel))]
+    st.caption(f"{len(d)} tiket breach dari filter yang dipilih (total {len(det)} tiket breach periode ini).")
+    if len(d) == 0:
+        return
+    per = (d.groupby(["Insiden", "Severity"]).agg(Tiket_Breach=("Tiket", "count"),
+                                                 Kelebihan_Maks_menit=("Kelebihan_terbesar_menit", "max")).reset_index()
+           .sort_values("Tiket_Breach", ascending=False))
+    top_n = per.head(15 if detail else 8)
+    st.markdown("Insiden dengan breach terbanyak")
+    st.dataframe(top_n, hide_index=True, use_container_width=True)
+    with st.expander(f"Daftar {len(d)} tiket breach"):
+        st.dataframe(d, hide_index=True, use_container_width=True)
+
+
+def render_stage_incidents(df, kc_raw, key_prefix="kcstage"):
+    """Rule/insiden apa saja di tiap tahap Kill Chain (permintaan MOM)."""
+    from core.killchain_analysis import build_stage_incident_tables
+    if df is None or len(df) == 0 or kc_raw is None or len(kc_raw) == 0:
+        return
+    stages = [(r["Stage"], int(r["Count"])) for _, r in kc_raw.iterrows() if r["Count"] > 0]
+    if not stages:
+        return
+    st.markdown("### 📋 Rule & Insiden di Tiap Stage")
+    tabs = st.tabs([f"{n} ({c})" for n, c in stages])
+    for tab, (name, cnt) in zip(tabs, stages):
+        with tab:
+            per_rule, tk = build_stage_incident_tables(df, name)
+            if len(per_rule) == 0:
+                st.caption("Tidak ada tiket.")
+                continue
+            st.caption(f"{cnt} tiket dari {len(per_rule)} rule/insiden berbeda.")
+            st.dataframe(per_rule, hide_index=True, use_container_width=True)
+            with st.expander(f"Daftar {len(tk)} tiket"):
+                st.dataframe(tk, hide_index=True, use_container_width=True)
+
+
 def render_killchain_mapping_panels(report, df, key_prefix="kcm", detail=True):
     """Panel MOM: severity Critical (Exploitation+), breakdown alert vs tiket per Kill Chain,
     Valid Accounts, validasi MITRE v20, sumber label. df = frame tiket terenrich (sesuai toggle)."""
@@ -1419,62 +1520,12 @@ if current_page == "📋 Executive Summary":
     # --- 2. Cybersecurity Incident Ticket Performance ---
     st.markdown("## 2️⃣ Cybersecurity Incident Ticket Performance")
     if len(report.get("sla_metrics", [])) > 0:
-        overall_sla = report["sla_metrics"][report["sla_metrics"]["Priority_Label"] == "SEMUA"].iloc[0]
-        # .get() dengan default - supaya kalau laporan ini dari CACHE LAMA
-        # (skema sebelum kolom %_Breach/Jumlah_Breach ditambahkan), tidak
-        # crash KeyError, cuma tampil "-" dan sarankan generate ulang.
-        is_old_schema = "%_Breach" not in overall_sla.index
-        if is_old_schema:
-            st.warning("⚠️ Laporan ini dari skema versi lama (belum ada data breach per-severity) - "
-                       "generate ulang periode ini untuk data terbaru.")
-
         st.caption(f"📅 Periode: **{st.session_state.get('period_label') or '-'}** - laporan yang sedang dibuka "
                    "(satu bulan saja, tidak mengikuti pilihan bulan di bagian Tren di atas).")
-        c0a, c0b, c0c = st.columns(3)
-        c0a.metric("Total Tiket", int(overall_sla.get("Jumlah_Tiket", 0)))
-        pct_breach = overall_sla.get("%_Breach", "-")
-        c0b.metric("% Breach", f"{pct_breach}%" if pct_breach != "-" else "-")
+        render_sla_panel(report, key_prefix="sum", detail=False)
         if show_alert:
-            detection_rate = exec_df[exec_df["Metric"] == "Detection Rate"]["Value"].values
-            c0c.metric("Detection Rate", detection_rate[0] if len(detection_rate) else "-")
-
-        _f = lambda v: f"{float(v):g} menit" if pd.notna(pd.to_numeric(v, errors="coerce")) else "-"
-        _n = lambda c: int(pd.to_numeric(overall_sla.get(c, 0), errors="coerce") or 0)
-        _g = lambda c: overall_sla.get(c, float("nan"))
-        st.markdown("**Waktu Penanganan (periode ini)**")
-        st.dataframe(pd.DataFrame([
-            {"Metrik": "MTTR - Respon", "Rata-rata": _f(_g("Avg_MTTR_menit")), "Median": "-",
-             "Dihitung dari": "Created On → Active DateTime", "Tiket": str(_n("Tiket_Dinilai_SLA")),
-             "Target": "≤ 5 menit"},
-            {"Metrik": "MTTC - Containment", "Rata-rata": _f(_g("Avg_MTTC_menit")), "Median": _f(_g("Median_MTTC_menit")),
-             "Dihitung dari": "Active DateTime → Contained On", "Tiket": str(_n("Tiket_Contained")), "Target": "-"},
-            {"Metrik": "MTTRV - Resolusi", "Rata-rata": _f(_g("Avg_MTTRV_menit")), "Median": _f(_g("Median_MTTRV_menit")),
-             "Dihitung dari": "Contained On → Resolved On", "Tiket": "≤ " + str(_n("Tiket_Contained")), "Target": "-"},
-        ]), hide_index=True, use_container_width=True)
-        st.caption("MTTC dan MTTRV hanya dari tiket yang punya Contained On. Median lebih mewakili kondisi umum "
-                   "bila ada beberapa tiket yang sangat lama.")
-
-        c1, c2 = st.columns([3, 2])
-        with c1:
-            st.markdown("**SLA by Severity**")
-            radar_df = report["sla_metrics"][report["sla_metrics"]["Priority_Label"] != "SEMUA"]
-            radar_cols = [c for c in ["Avg_MTTR_menit"] + (["Avg_MTTC_menit"] if SHOW_MTTC else []) + ["Avg_MTTRV_menit"]
-                          if c in radar_df.columns]
-            if len(radar_cols) >= 2:
-                plot_bar_multi_sla(radar_df, "Priority_Label", radar_cols)
-            st.caption("State machine CSOC: MTTR = Created → Active (SLA 5 menit), MTTC = Active → Contained, "
-                       "MTTRV = Contained → Resolved. MTTC/MTTRV hanya dari tiket yang "
-                       "punya Contained On - lihat Tiket_Contained.")
-        with c2:
-            st.markdown("**Meet vs Breach**")
-            if "Jumlah_Breach" in overall_sla.index:
-                meet_breach_df = pd.DataFrame({
-                    "Status": ["Meet", "Breach"],
-                    "Jumlah": [overall_sla.get("Tiket_Dinilai_SLA", overall_sla["Jumlah_Tiket"]) - overall_sla["Jumlah_Breach"], overall_sla["Jumlah_Breach"]],
-                })
-                plot_pie(meet_breach_df, "Status", "Jumlah", semantic=False)
-            else:
-                st.caption("⚠️ Data Meet vs Breach belum tersedia di laporan versi ini.")
+            _dr = exec_df[exec_df["Metric"] == "Detection Rate"]["Value"].values
+            st.metric("Detection Rate", _dr[0] if len(_dr) else "-")
     else:
         st.info("ℹ️ Belum ada data tiket untuk periode ini.")
     if st.button("Lihat Detail Ticket Performance →", key="btn_goto_efektivitas"):
@@ -1628,6 +1679,7 @@ if current_page == "📋 Executive Summary":
                    "naik-turun (tidak dipaksa menurun ke kanan).")
     else:
         st.warning("⚠️ Belum ada data Kill Chain untuk subset yang dipilih.")
+    render_stage_incidents(mitre_df, kc_raw)
 
     # --- TURUNAN LANGSUNG dari anchor: korelasi Tactic->Technique via mini-Sunburst,
     # BUKAN 2 bar chart terpisah (yang tidak menunjukkan hubungan Tactic mana
@@ -2266,26 +2318,10 @@ if current_page == "Efektivitas":
     st.caption("✅ Menjawab: **seberapa efektif** SOC menangani ancaman - severity, hasil investigasi, dan akurasi prioritas.")
 
     if len(report.get("sla_metrics", [])) > 0:
-        st.markdown("### SLA Metrics (State Machine: Logged → Active → Contained → Resolved)")
-        st.info(
-            "**Matriks performa (CSOC State Machine)**: MTTR = Created → Active (respons, SLA 5 menit), "
-            "MTTC = Active → Contained, MTTRV = Contained → Resolved. "
-            + ("MTTC dan MTTRV dihitung hanya untuk tiket yang punya timestamp Contained On "
-               "(lihat Tiket_Contained / %_Contained untuk cakupannya)." if SHOW_MTTC else "")
-        )
-
-        st.markdown("**Matriks MTTR & MTTRV per Priority**")
-        radar_df = report["sla_metrics"][report["sla_metrics"]["Priority_Label"] != "SEMUA"]
-        sla_cols_show = [c for c in ["Avg_MTTR_menit"] + (["Avg_MTTC_menit"] if SHOW_MTTC else []) + ["Avg_MTTRV_menit"]
-                         if c in radar_df.columns]
-        if len(sla_cols_show) >= 2:
-            plot_bar_multi_sla(radar_df, "Priority_Label", sla_cols_show)
-        st.dataframe(report["sla_metrics"], use_container_width=True)
-
-        sla_sev = report.get("sla_metrics_by_severity")
-        if sla_sev is not None and len(sla_sev) > 0:
-            st.markdown("**Matriks MTTR & MTTRV per Severity (label Ivanti)**")
-            st.dataframe(sla_sev, use_container_width=True)
+        st.markdown("### SLA per Severity (MOM) - MTTR, MTTC, MTTRV dari Logged")
+        render_sla_panel(report, key_prefix="eff", detail=True)
+        with st.expander("Tabel lengkap per Priority"):
+            st.dataframe(report["sla_metrics"], use_container_width=True)
         if report.get("sla_metrics_note"):
             st.caption(report["sla_metrics_note"])
         _sq = report.get("sla_state_quality")
@@ -2346,8 +2382,8 @@ if current_page == "KPI Analyst":
     st.caption("👤 Menjawab: siapa yang paling banyak bekerja, seberapa cepat responsnya (People Performance).")
     st.info(
         "**Take** = Total_Incident/Task diambil. **MTTR** = Created On → Responded On (Logged→Active). "
-        "**MTTC** = Active → Contained On, **MTTRV** = Contained On → Resolved On (hanya tiket yang punya "
-        "timestamp Contained On; lihat Tiket_Contained). Breach = MTTR lebih dari 5 menit."
+        "**MTTC** = Logged → Contained On (batas = SLA MTTC + 5 menit), **MTTRV** = Logged → Resolved On "
+        "(batas = Total Time per severity), keduanya dihitung dari Logged sesuai MOM. Breach MTTR = lebih dari 5 menit."
     )
     show_insights(["H-KPI"])
     kpi_full = report["soc_individual_kpi"]

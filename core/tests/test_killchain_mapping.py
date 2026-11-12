@@ -114,25 +114,48 @@ class TestStateMachineDurations(unittest.TestCase):
             "Closed On": [m(13), m(31), m(41), m(51)],
         })
 
-    def test_intervals_follow_state_machine(self):
+    def test_all_metrics_counted_from_logged(self):
         from core.processor import compute_state_durations
         d = compute_state_durations(self._inc())
         self.assertEqual(d["MTTR_sec"].iloc[0], 60)
-        self.assertEqual(d["MTTC_sec"].iloc[0], 600)      # Active -> Contained
-        self.assertEqual(d["MTTRV_sec"].iloc[0], 60)      # Contained -> Resolved
-        self.assertEqual(d["Resolusi_Total_sec"].iloc[1], 1800)
-        self.assertTrue(pd.isna(d["MTTC_sec"].iloc[3]))   # urutan terbalik tidak dihitung
+        self.assertEqual(d["MTTC_sec"].iloc[0], 660)      # Created -> Contained
+        self.assertEqual(d["MTTRV_sec"].iloc[0], 720)     # Created -> Resolved
+        self.assertEqual(d["MTTRV_sec"].iloc[1], 1800)
+        self.assertEqual(d["Containment_dari_Active_sec"].iloc[0], 600)   # referensi: Active -> Contained
+        self.assertEqual(d["Resolve_dari_Contained_sec"].iloc[0], 60)     # referensi: Contained -> Resolved
+        self.assertTrue(pd.isna(d["Containment_dari_Active_sec"].iloc[3]))  # urutan terbalik tidak dihitung
         self.assertTrue(pd.isna(d["MTTR_sec"].iloc[2]))
+        self.assertTrue(pd.isna(d["MTTC_sec"].iloc[2]))   # tanpa Contained On
         self.assertEqual(int(d.attrs["quality"].set_index("Pemeriksaan").loc["Punya Contained On", "Jumlah"]), 3)
 
-    def test_without_contained_column_falls_back(self):
+    def test_without_contained_column_mttc_is_empty_but_mttrv_remains(self):
         from core.processor import compute_state_durations
         d = compute_state_durations(self._inc().drop(columns=["Contained On"]))
         self.assertTrue(d["MTTC_sec"].isna().all())
-        self.assertFalse(d.attrs["mttrv_from_contained"])
         self.assertEqual(d["MTTRV_sec"].iloc[1], 1800)
 
-    def test_breach_is_created_to_active_over_5_minutes(self):
+    def test_sla_targets_per_severity_from_logged(self):
+        from core.processor import compute_state_durations
+        from core.sla import compute_sla_flags
+        t0 = pd.Timestamp("2026-10-01 10:00:00")
+        m = lambda x: t0 + pd.Timedelta(minutes=x)
+        inc = pd.DataFrame({
+            "Severity": ["critical", "critical", "high", "low", "-"],
+            "Priority": [0, 0, 1, 3, 2],
+            "Created On": [t0] * 5,
+            "Responded On": [m(7), m(2), m(4), m(4), m(4)],
+            "Contained On": [m(35), m(25), m(56), m(100), m(130)],     # batas: 25 / 25 / 55 / 245 / 125 (Medium via Priority)
+            "Resolved On": [m(70), m(64), m(150), m(800), m(300)],     # batas: 64 / 64 / 154 / 724 / 364
+        })
+        f = compute_sla_flags(inc, compute_state_durations(inc))
+        self.assertEqual(f["_SLA_Severity"].tolist(), ["Critical", "Critical", "High", "Low", "Medium"])
+        self.assertEqual(f["_Breach_MTTR"].tolist(), [True, False, False, False, False])
+        self.assertEqual(f["_Breach_MTTC"].tolist(), [True, False, True, False, True])
+        self.assertEqual(f["_Breach_MTTRV"].tolist(), [True, False, False, True, False])
+        self.assertEqual(f["_Jenis_Breach"].iloc[0], "MTTR, MTTC, MTTRV")
+        self.assertEqual(f["_MTTC_Sisa_setelah_Active_menit"].iloc[0], 18)  # batas 25 - MTTR 7
+
+    def test_mttr_breach_is_created_to_active_over_5_minutes(self):
         from core.processor import SOCProcessor
         p = SOCProcessor.__new__(SOCProcessor)
         p.incident = self._inc()

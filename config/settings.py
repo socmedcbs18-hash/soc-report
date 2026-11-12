@@ -239,3 +239,22 @@ TERAPKAN_LABEL_USULAN = True
 # Dasar penghitungan Kill Chain/MITRE: "confirmed" = hanya aktivitas yang terkonfirmasi (False Positive tidak dihitung,
 # True Positive Prevented dibatasi sampai Delivery); "rule" = label rule apa adanya (potensi deteksi).
 KILLCHAIN_BASIS = "confirmed"
+
+# ---------------------------------------------------------------------------------------------
+# SLA per Severity (MOM unit head, Nov 2026). Semua waktu dihitung dari LOGGED (Created On).
+#   MTTR  : Created -> Active                    <= SLA_MTTR_MENIT (5 menit)
+#   MTTC  : Created -> Contained On              <= mttc  + SLA_MTTR_MENIT
+#           (contoh MOM: SLA 30 + 5 = 35 menit; bila MTTR aktual 7 menit, sisa waktu containment 28 menit)
+#   MTTRV : Created -> Resolved On               <= total (kolom "Total Time" pada tabel MOM)
+# 'mttc' & 'mttrv' = durasi SLA tiap fase menurut tabel MOM; 'total' = batas dari Logged sampai Resolved.
+# Ubah angka di sini bila kebijakan berubah. Satuan: menit.
+# ---------------------------------------------------------------------------------------------
+SLA_MTTR_MENIT = 5
+SLA_TARGET_MENIT = {
+    "Critical": {"mttc": 20,  "mttrv": 40,  "total": 64},    # 1 jam 4 menit
+    "High":     {"mttc": 50,  "mttrv": 100, "total": 154},   # 2 jam 34 menit
+    "Medium":   {"mttc": 120, "mttrv": 240, "total": 364},   # 6 jam 4 menit
+    "Low":      {"mttc": 240, "mttrv": 480, "total": 724},   # 12 jam 4 menit
+}
+# Bila Severity tiket kosong/tidak baku, pakai Priority Ivanti sebagai pengganti (dicatat di _SLA_Severity_Sumber)
+SLA_PRIORITY_KE_SEVERITY = {0: "Critical", 1: "High", 2: "Medium", 3: "Low"}

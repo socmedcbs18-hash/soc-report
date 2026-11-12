@@ -54,13 +54,13 @@ from config.settings import (
 
 
 def compute_state_durations(inc, show_mttc=True):
-    """Durasi per state sesuai CSOC State Machine (Logged -> Active -> Contained -> Resolved -> Closed).
-    MTTR  = Created On -> Active (Responded On).
-    MTTC  = Active -> Contained On.            (butuh kolom 'Contained On')
-    MTTRV = Contained On -> Resolved On.       (butuh kolom 'Contained On'; kalau tidak ada, fallback ke
-                                                Created -> Resolved dan ditandai attrs['mttrv_from_contained']=False)
-    Resolusi_Total = Created -> Resolved; Tutup = Resolved -> Closed; Lifetime = Created -> Closed.
-    Selisih negatif (urutan timestamp terbalik) TIDAK dihitung (NaN) dan dicatat di attrs['quality']."""
+    """Durasi tiap metrik sesuai MOM unit head - SEMUA dihitung dari LOGGED (Created On):
+    MTTR  = Created -> Active (Responded On).
+    MTTC  = Created -> Contained On.           (butuh kolom 'Contained On'; tanpa itu = NaN)
+    MTTRV = Created -> Resolved On.
+    Tambahan (selisih antar-state, hanya referensi): Containment_dari_Active_sec = Active -> Contained,
+    Resolve_dari_Contained_sec = Contained -> Resolved, Tutup_sec = Resolved -> Closed, Lifetime_sec = Created -> Closed.
+    Resolusi_Total_sec = MTTRV_sec (alias). Selisih negatif (urutan timestamp terbalik) TIDAK dihitung (NaN)."""
     idx = inc.index
 
     def _dt(c):
@@ -79,31 +79,31 @@ def compute_state_durations(inc, show_mttc=True):
     out["MTTR_sec"] = mttr.where(mttr >= 0)
 
     has_contained = bool(show_mttc) and contained.notna().any()
-    raw_mttc = _diff(active, contained) if has_contained else pd.Series(np.nan, index=idx)
-    raw_mttrv_c = _diff(contained, resolved) if has_contained else pd.Series(np.nan, index=idx)
+    raw_mttc = _diff(created, contained) if has_contained else pd.Series(np.nan, index=idx)
     out["MTTC_sec"] = raw_mttc.where(raw_mttc >= 0)
 
     resolusi = _diff(created, resolved)
     if not resolusi.notna().any() and "Duration Resolved (Minutes)" in inc.columns:
         resolusi = pd.to_numeric(inc["Duration Resolved (Minutes)"], errors="coerce") * 60
     out["Resolusi_Total_sec"] = resolusi.where(resolusi >= 0)
+    out["MTTRV_sec"] = out["Resolusi_Total_sec"]
 
-    if has_contained:
-        out["MTTRV_sec"] = raw_mttrv_c.where(raw_mttrv_c >= 0)
-    else:
-        out["MTTRV_sec"] = out["Resolusi_Total_sec"]
+    c_a = _diff(active, contained) if has_contained else pd.Series(np.nan, index=idx)
+    r_c = _diff(contained, resolved) if has_contained else pd.Series(np.nan, index=idx)
+    out["Containment_dari_Active_sec"] = c_a.where(c_a >= 0)
+    out["Resolve_dari_Contained_sec"] = r_c.where(r_c >= 0)
     tutup, life = _diff(resolved, closed), _diff(created, closed)
     out["Tutup_sec"] = tutup.where(tutup >= 0)
     out["Lifetime_sec"] = life.where(life >= 0)
 
     q = [("Total tiket", len(inc), ""),
-         ("Tanpa timestamp Active (tidak dinilai breach MTTR)", int(active.isna().sum()), "Created On -> Active tidak bisa dihitung"),
-         ("Punya Contained On", int(contained.notna().sum()), "MTTC/MTTRV hanya dari tiket ini"),
-         ("Contained On lebih awal dari Active (diabaikan)", int((raw_mttc < 0).sum()), "urutan state terbalik"),
-         ("Resolved On lebih awal dari Contained On (diabaikan)", int((raw_mttrv_c < 0).sum()), "urutan state terbalik"),
+         ("Tanpa timestamp Active (MTTR tidak dinilai)", int(active.isna().sum()), "Created On -> Active tidak bisa dihitung"),
+         ("Punya Contained On", int(contained.notna().sum()), "MTTC hanya dari tiket ini"),
+         ("Contained On lebih awal dari Created On (diabaikan)", int((raw_mttc < 0).sum()), "urutan state terbalik"),
+         ("Resolved On lebih awal dari Created On (diabaikan)", int((resolusi < 0).sum()), "urutan state terbalik"),
          ("Closed On lebih awal dari Resolved On (diabaikan)", int((tutup < 0).sum()), "urutan state terbalik")]
     out.attrs["quality"] = pd.DataFrame(q, columns=["Pemeriksaan", "Jumlah", "Catatan"])
-    out.attrs["mttrv_from_contained"] = has_contained
+    out.attrs["mttc_available"] = has_contained
     return out
 
 
@@ -142,11 +142,11 @@ class SOCProcessor:
     # =====================================================
 
     def _compute_incident_breach_flag(self):
-        """_Breach = breach SLA RESPONSE (MTTR): Created On -> Active lebih dari SLA_MTTR_SECONDS (5 menit),
-        dihitung dari timestamp (aturan CSOC State Machine). Tiket tanpa timestamp Active = tidak breach di sini
-        (tidak ditebak; dihitung terpisah sebagai 'tidak dinilai' di SLA metrics).
-        _Breach_Ivanti = flag bawaan Ivanti (response ATAU resolution), disimpan sebagai pembanding.
-        Skema lama tanpa timestamp Active: _Breach jatuh ke flag Ivanti / kolom 'Breach ?'."""
+        """Breach sesuai MOM (lihat core/sla.py): _Breach = breach MTTR ATAU MTTC ATAU MTTRV (semua dari Logged,
+        batas per Severity di config/settings.py). Kolom rinci: _Breach_MTTR, _Breach_MTTC, _Breach_MTTRV,
+        _Jenis_Breach, _SLA_Severity. _Breach_Ivanti = flag bawaan Ivanti, hanya pembanding.
+        Skema lama tanpa timestamp: _Breach jatuh ke flag Ivanti / 'Breach ?'."""
+        from core.sla import compute_sla_flags
         inc = self.incident
         if "FlagBreachResponse" in inc.columns or "FlagBreachResolution" in inc.columns:
             resp_b = pd.to_numeric(inc.get("FlagBreachResponse", 0), errors="coerce").fillna(0)
@@ -158,10 +158,13 @@ class SOCProcessor:
         else:
             ivanti = None
 
-        if "Created On" in inc.columns and "Responded On" in inc.columns:
-            s = (pd.to_datetime(inc["Responded On"], errors="coerce") - pd.to_datetime(inc["Created On"], errors="coerce")).dt.total_seconds()
-            if s.notna().any():
-                self.incident["_Breach"] = (s > SLA_MTTR_SECONDS).fillna(False)
+        if "Created On" in inc.columns and ("Responded On" in inc.columns or "Resolved On" in inc.columns):
+            dur = compute_state_durations(inc, show_mttc=SHOW_MTTC)
+            if dur["MTTR_sec"].notna().any() or dur["MTTRV_sec"].notna().any():
+                fl = compute_sla_flags(inc, dur)
+                for c in fl.columns:
+                    self.incident[c] = fl[c]
+                self.incident["_Breach"] = fl["_Breach_Any"]
                 return
         self.incident["_Breach"] = ivanti if ivanti is not None else False  # tidak ada info breach - jangan menebak
 
@@ -1227,7 +1230,9 @@ class SOCProcessor:
     #         Resolved On - Created On pada data Sept-Okt 2026, bukan Active -> Resolved).
 
     def build_sla_metrics(self):
-        print("Building SLA Metrics (MTTR/MTTC/MTTRV)...")
+        print("Building SLA Metrics (MTTR/MTTC/MTTRV per Severity, dari Logged)...")
+        from core.sla import compute_sla_flags, build_breach_tables, LEVELS
+        from config.settings import SLA_MTTR_MENIT, SLA_TARGET_MENIT
 
         inc = self.incident.drop_duplicates(subset=["Incident"]).copy()
         priority_label = {0: "P0-Critical", 1: "P1-High", 2: "P2-Medium", 3: "P3-Low"}
@@ -1236,14 +1241,14 @@ class SOCProcessor:
         dur = compute_state_durations(inc, show_mttc=SHOW_MTTC)
         for k in ["MTTR_sec", "MTTC_sec", "MTTRV_sec", "Resolusi_Total_sec", "Tutup_sec", "Lifetime_sec"]:
             inc[k] = dur[k]
+        fl = compute_sla_flags(inc, dur)
+        for c in fl.columns:
+            inc[c] = fl[c]
         has_mttc = bool(inc["MTTC_sec"].notna().any())
-        mttrv_state = bool(dur.attrs.get("mttrv_from_contained"))
         self.mttc_available = has_mttc
         self.sla_state_quality = dur.attrs.get("quality", pd.DataFrame())
-
         has_precomputed_breach = "_Breach_Ivanti" in inc.columns
-        inc["_AnyBreach"] = inc["_Breach"]
-        inc["_Dinilai"] = inc["MTTR_sec"].notna()  # tiket tanpa timestamp Active tidak bisa dinilai breach-nya
+        inc["_Dinilai"] = inc["MTTR_sec"].notna() | inc["MTTRV_sec"].notna()
 
         def _m(x, med=False):
             x = pd.to_numeric(x, errors="coerce")
@@ -1263,17 +1268,26 @@ class SOCProcessor:
                 "Median_MTTRV_menit": _m(g["MTTRV_sec"], med=True),
                 "Avg_Resolusi_Total_menit": _m(g["Resolusi_Total_sec"]),
                 "Tiket_Dinilai_SLA": int(g["_Dinilai"].sum()),
-                "Jumlah_Breach": int(g.loc[g["_Dinilai"], "_AnyBreach"].sum()),
+                "Breach_MTTR": int(g["_Breach_MTTR"].sum()),
+                "Breach_MTTC": int(g["_Breach_MTTC"].sum()),
+                "Breach_MTTRV": int(g["_Breach_MTTRV"].sum()),
+                "Jumlah_Breach": int(g.loc[g["_Dinilai"], "_Breach_Any"].sum()),
             }
             r["%_Breach"] = round(100 * r["Jumlah_Breach"] / r["Tiket_Dinilai_SLA"], 1) if r["Tiket_Dinilai_SLA"] else None
+            n_mttr = int(g["MTTR_sec"].notna().sum())
+            r["%_Breach_MTTR"] = round(100 * r["Breach_MTTR"] / n_mttr, 1) if n_mttr else None
+            r["%_Breach_MTTC"] = round(100 * r["Breach_MTTC"] / r["Tiket_Contained"], 1) if r["Tiket_Contained"] else None
+            n_rv = int(g["MTTRV_sec"].notna().sum())
+            r["%_Breach_MTTRV"] = round(100 * r["Breach_MTTRV"] / n_rv, 1) if n_rv else None
             if has_precomputed_breach:
                 r["Breach_Menurut_Ivanti"] = int(g["_Breach_Ivanti"].sum())
             return r
 
         cols = ["Jumlah_Tiket", "Avg_MTTR_menit", "Avg_MTTC_menit", "Median_MTTC_menit", "Tiket_Contained",
                 "%_Contained", "Avg_MTTRV_menit", "Median_MTTRV_menit", "Avg_Resolusi_Total_menit",
-                "Tiket_Dinilai_SLA", "Jumlah_Breach", "%_Breach"] + (["Breach_Menurut_Ivanti"] if has_precomputed_breach else [])
-        drop_if_no_mttc = ["Avg_MTTC_menit", "Median_MTTC_menit", "Tiket_Contained", "%_Contained"]
+                "Tiket_Dinilai_SLA", "Breach_MTTR", "Breach_MTTC", "Breach_MTTRV", "%_Breach_MTTR", "%_Breach_MTTC",
+                "%_Breach_MTTRV", "Jumlah_Breach", "%_Breach"] + (["Breach_Menurut_Ivanti"] if has_precomputed_breach else [])
+        drop_if_no_mttc = ["Avg_MTTC_menit", "Median_MTTC_menit", "Tiket_Contained", "%_Contained", "Breach_MTTC", "%_Breach_MTTC"]
         if not has_mttc:
             cols = [c for c in cols if c not in drop_if_no_mttc]
 
@@ -1282,25 +1296,32 @@ class SOCProcessor:
         per_tier = pd.DataFrame(tiers)[["Priority_Label"] + cols] if tiers else pd.DataFrame(columns=["Priority_Label"] + cols)
         self.sla_metrics = pd.concat([overall, per_tier], ignore_index=True)
 
-        # Matriks yang sama per Severity (teks, dinormalkan)
-        inc["_Sev"] = inc["Severity"].map(normalize_severity) if "Severity" in inc.columns else "Tidak diketahui"
-        _ord = {k: i for i, k in enumerate(["Critical", "High", "Medium", "Low", "Informational", "Tidak diketahui"])}
-        sev_rows = [dict(Severity=k, **_agg(g)) for k, g in inc.groupby("_Sev")]
-        by_sev = pd.DataFrame(sev_rows)[["Severity"] + cols] if sev_rows else pd.DataFrame(columns=["Severity"] + cols)
-        self.sla_metrics_by_severity = by_sev.sort_values("Severity", key=lambda c: c.map(_ord)).reset_index(drop=True)
+        # Matriks per Severity SLA (Severity tiket; bila kosong -> Priority). Disertai batas SLA dari MOM.
+        sev_rows = []
+        for k in LEVELS + ["Tidak diketahui"]:
+            g = inc[inc["_SLA_Severity"].fillna("Tidak diketahui") == k]
+            if len(g) == 0:
+                continue
+            t = SLA_TARGET_MENIT.get(k, {})
+            row = {"Severity": k,
+                   "Batas_MTTR_menit": SLA_MTTR_MENIT,
+                   "Batas_MTTC_menit": (t["mttc"] + SLA_MTTR_MENIT) if t else None,
+                   "Batas_MTTRV_menit": t.get("total") if t else None}
+            row.update(_agg(g))
+            sev_rows.append(row)
+        extra = ["Batas_MTTR_menit", "Batas_MTTC_menit", "Batas_MTTRV_menit"]
+        self.sla_metrics_by_severity = (pd.DataFrame(sev_rows)[["Severity"] + extra + cols] if sev_rows
+                                        else pd.DataFrame(columns=["Severity"] + extra + cols))
+        self.sla_severity_source = inc["_SLA_Severity_Sumber"].value_counts().rename_axis("Sumber").reset_index(name="Jumlah")
+
+        self.sla_breach_detail, self.sla_breach_by_incident = build_breach_tables(inc)
 
         self.sla_metrics_note = (
-            f"Sesuai CSOC State Machine: MTTR = Created -> Active (SLA {SLA_MTTR_SECONDS // 60} menit; breach = lebih dari "
-            f"{SLA_MTTR_SECONDS // 60} menit, dihitung dari timestamp), "
-            + ("MTTC = Active -> Contained On, MTTRV = Contained On -> Resolved On "
-               "(hanya tiket yang punya timestamp Contained On; lihat Tiket_Contained/%_Contained untuk cakupannya; "
-               "Median ikut ditampilkan karena rata-rata terdongkrak outlier). " if mttrv_state else
-               "MTTRV = Created -> Resolved karena data tidak punya Contained On (MTTC tidak tampil). ")
-            + "Avg_Resolusi_Total_menit = Created -> Resolved (seluruh umur tiket sampai selesai). "
-            " Tiket tanpa timestamp Active tidak dinilai breach "
-            "(Tiket_Dinilai_SLA). "
-            + ("Breach_Menurut_Ivanti = flag breach bawaan Ivanti, dipakai sebagai pembanding "
-               "(lihat sheet Sla State Quality)." if has_precomputed_breach else "")
+            f"Sesuai MOM unit head - semua dihitung dari Logged (Created On): MTTR = Created -> Active (batas {SLA_MTTR_MENIT} menit); "
+            "MTTC = Created -> Contained On (batas = SLA MTTC severity + 5 menit); MTTRV = Created -> Resolved On "
+            "(batas = Total Time severity). Severity SLA memakai kolom Severity tiket; bila kosong memakai Priority. "
+            "MTTC hanya untuk tiket yang punya Contained On (lihat Tiket_Contained). Breach = melewati salah satu batas. "
+            + ("Breach_Menurut_Ivanti = flag breach bawaan Ivanti (pembanding)." if has_precomputed_breach else "")
         )
         self.sla_has_precomputed_breach = has_precomputed_breach
 
@@ -2591,6 +2612,9 @@ class SOCProcessor:
             "sla_metrics": self.sla_metrics,
             "sla_metrics_by_severity": self.sla_metrics_by_severity,
             "sla_state_quality": self.sla_state_quality,
+            "sla_breach_detail": self.sla_breach_detail,
+            "sla_breach_by_incident": self.sla_breach_by_incident,
+            "sla_severity_source": self.sla_severity_source,
             "sla_metrics_note": self.sla_metrics_note,
             "soc_individual_kpi": self.soc_individual_kpi,
             "priority": self.priority,

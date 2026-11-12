@@ -2767,3 +2767,11 @@ Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 5
 ## 127. Perbaikan: ValueError st.columns pada Ticket Performance saat toggle Alert Splunk mati
 
 `c0a, c0b, c0c = st.columns(3 if show_alert else 2)` -> selalu `st.columns(3)` (kolom ketiga hanya diisi bila toggle aktif). Blok tabel Waktu Penanganan diuji dengan stub Streamlit.
+
+## 128. SLA sesuai MOM unit head: MTTC/MTTRV dari Logged, per severity, breach explorer, isi tiap tahap Kill Chain
+
+- `core/sla.py` (baru): MTTR = Logged->Active (<=5 mnt); MTTC = Logged->Contained On (batas SLA MTTC + 5); MTTRV = Logged->Resolved On (batas = Total Time: Critical 64, High 154, Medium 364, Low 724 mnt). Severity SLA = Severity tiket, fallback Priority bila kosong.
+- `core/processor.py`: `build_sla_metrics`, `sla_metrics_by_severity` (batas + breach per metrik), `sla_breach_detail`, `sla_breach_by_incident`.
+- `app.py`: panel SLA per severity, Breach Explorer (filter severity/jenis breach), tabel rule/insiden per tahap Kill Chain (`render_stage_incidents`); teks MTTC/MTTRV diperbarui; pptx slide matriks SLA diperbarui.
+- `core/killchain_analysis.py`: `build_stage_incident_tables`; konstanta urutan severity diberi nama `_SEV_URUT_ATAS` agar tidak menimpa `_SEV_RANK`.
+- Asumsi perlu konfirmasi unit head: batas MTTRV memakai Total Time tabel (64, bukan 65).

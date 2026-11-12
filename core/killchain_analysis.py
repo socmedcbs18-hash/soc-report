@@ -276,3 +276,38 @@ def use_ticket_labels(df):
     for c in _TICKET_LABEL_COLS:
         d[c] = d[c + "_Tiket"]
     return d
+
+
+_SEV_URUT_ATAS = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Informational": 4, "Tidak diketahui": 5}
+
+
+def build_stage_incident_tables(df, stage, name_col="Summary", id_col="Incident"):
+    """Rule/insiden yang menjadi isi satu tahap Kill Chain (permintaan MOM: 'ada 4 Actions on Objectives -> itu
+    rule/insiden apa saja'). df = tiket terenrich (kolom _KillChain_Stages). Return (per_rule, daftar_tiket)."""
+    cols_rule = ["Rule / Insiden", "Jumlah_Tiket", "Severity_Tertinggi", "True_Positive", "False_Positive", "Belum_Triage"]
+    cols_tkt = ["Tiket", "Rule / Insiden", "Severity", "Triage", "Owner", "Created On"]
+    if df is None or len(df) == 0 or "_KillChain_Stages" not in df.columns:
+        return pd.DataFrame(columns=cols_rule), pd.DataFrame(columns=cols_tkt)
+    m = df["_KillChain_Stages"].map(lambda L: any(str(x).lower() == str(stage).lower() for x in L))
+    sub = df[m].copy()
+    if sub.empty:
+        return pd.DataFrame(columns=cols_rule), pd.DataFrame(columns=cols_tkt)
+    name = sub[name_col].astype(str) if name_col in sub.columns else pd.Series("(tanpa nama)", index=sub.index)
+    sev = sub["_Severity_Norm"] if "_Severity_Norm" in sub.columns else pd.Series("Tidak diketahui", index=sub.index)
+    tri = sub["_Triage"].astype(str) if "_Triage" in sub.columns else pd.Series("Unknown", index=sub.index)
+    t = pd.DataFrame({"Rule / Insiden": name.str.strip(), "Severity": sev, "Triage": tri})
+    rows = []
+    for k, g in t.groupby("Rule / Insiden"):
+        top = sorted(g["Severity"].unique(), key=lambda x: _SEV_URUT_ATAS.get(x, 9))[0]
+        rows.append({"Rule / Insiden": k, "Jumlah_Tiket": len(g), "Severity_Tertinggi": top,
+                     "True_Positive": int((g["Triage"] == "True Positive").sum()),
+                     "False_Positive": int((g["Triage"] == "False Positive").sum()),
+                     "Belum_Triage": int((~g["Triage"].isin(["True Positive", "False Positive"])).sum())})
+    per_rule = pd.DataFrame(rows, columns=cols_rule).sort_values("Jumlah_Tiket", ascending=False).reset_index(drop=True)
+    tk = pd.DataFrame({
+        "Tiket": sub[id_col].astype(str) if id_col in sub.columns else sub.index.astype(str),
+        "Rule / Insiden": name.str.strip(), "Severity": sev, "Triage": tri,
+        "Owner": sub["Owner"].astype(str) if "Owner" in sub.columns else "",
+        "Created On": sub["Created On"] if "Created On" in sub.columns else pd.NaT,
+    })[cols_tkt]
+    return per_rule, tk.reset_index(drop=True)
