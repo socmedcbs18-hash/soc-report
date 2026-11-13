@@ -1169,31 +1169,26 @@ def render_killchain_mapping_panels(report, df, key_prefix="kcm", detail=True):
     Valid Accounts, validasi MITRE v20, sumber label. df = frame tiket terenrich (sesuai toggle)."""
     if df is None or len(df) == 0 or "_Severity_Efektif" not in df.columns:
         return
-    st.markdown("#### 🔴 Severity Kill Chain - Exploitation ke atas = Critical")
-    st.caption("Aturan MOM: tiket yang mencapai tahap Exploitation, Installation, Privilege Escalation, "
-               "Command & Control atau Actions on Objectives dinaikkan menjadi Critical. Dihitung dari label "
-               "yang dipilih di toggle sumber label, bukan dari label Ivanti mentah yang banyak salah-map.")
+    st.markdown("#### 🔴 Severity per Tahap Kill Chain")
+    st.caption("Severity mengikuti tiket Ivanti apa adanya (tidak dinaikkan otomatis dari tahap Kill Chain). "
+               "'Tiket tahap lanjut terkonfirmasi' hanya informasi untuk ditinjau analyst/CSIRT.")
     n_all = len(df)
     n_up = int(df["_Severity_Naik"].sum())
     n_crit_eff = int((df["_Severity_Efektif"] == "Critical").sum())
     n_crit_org = int((df["_Severity_Norm"] == "Critical").sum())
     tp = df[df["_Triage"] == "True Positive"] if "_Triage" in df.columns else df.iloc[0:0]
     m1, m2, m3, m4 = st.columns(4)
+    n_kand = int(df["_Kandidat_Critical"].sum()) if "_Kandidat_Critical" in df.columns else n_up
     m1.metric("Critical (severity Ivanti)", n_crit_org)
-    m2.metric("Critical (efektif)", n_crit_eff, delta=n_crit_eff - n_crit_org)
-    m3.metric("Tiket dinaikkan", n_up)
+    m2.metric("Critical ditampilkan", n_crit_eff)
+    m3.metric("Tiket tahap lanjut terkonfirmasi", n_kand)
     m4.metric("Critical efektif - True Positive", int((tp["_Severity_Efektif"] == "Critical").sum()) if len(tp) else 0)
     if n_all and n_crit_eff / n_all > 0.2:
-        st.warning(f"⚠️ {round(100 * n_crit_eff / n_all, 1)}% tiket menjadi Critical. Sebagian besar kemungkinan "
-                   "percobaan yang gagal (brute force, WAF block). Lihat kolom True Positive dan pertimbangkan "
-                   "tuning rule sebelum aturan ini dijadikan acuan SLA.")
+        st.warning(f"⚠️ {round(100 * n_crit_eff / n_all, 1)}% tiket berseverity Critical di Ivanti. Periksa apakah "
+                   "label Critical berasal dari severity alert Splunk, bukan keputusan analyst.")
     ksev = build_killchain_severity(df)
     if ksev is not None and len(ksev) > 0:
         st.dataframe(ksev, use_container_width=True)
-    raise_df = build_severity_raise_by_rule(df)
-    if raise_df is not None and len(raise_df) > 0:
-        with st.expander("Rule yang paling banyak menaikkan severity ke Critical", expanded=False):
-            st.dataframe(raise_df, use_container_width=True)
 
     st.markdown("#### 📊 Alert vs Tiket per Kill Chain")
     kab = report.get("killchain_alert_breakdown")

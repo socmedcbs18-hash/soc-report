@@ -2781,3 +2781,10 @@ Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 5
 - Rule ini memicu dari volume download (threshold), bukan dari bukti data keluar; banyak pemicunya akun internal @alto.id yang sah. Sebelumnya tiket yang belum di-triage ikut masuk Actions on Objectives (Sept: 21 dari 23 tiket AOO).
 - `core/outcome_stage.refine_outcome`: tiket belum di-triage dan tanpa Cause Code tidak lagi dihitung Actions on Objectives (label asli tetap di `_KC_Potensial`). AOO hanya untuk True Positive atau Cause Code Breach - Reported. Tahap lain tidak berubah.
 - Test `TestAooNeedsConfirmation`.
+
+## 130. Severity mengikuti Ivanti apa adanya
+
+- Permintaan: severity hanya mengikuti tiket Ivanti; Kill Chain dan MITRE tetap memakai mapping rule Splunk yang disarankan.
+- `config/settings.py`: `SEVERITY_SUMBER = "ivanti"` (default). `add_effective_severity`: tidak ada kenaikan/penurunan otomatis; `_Kandidat_Critical` (tahap >= Exploitation terkonfirmasi) hanya informasi. Mode lama: `SEVERITY_SUMBER = "kill_chain"`.
+- app.py: panel severity per tahap Kill Chain diperbarui; tabel "rule yang menaikkan severity" dihapus.
+- Temuan: Oktober punya 41 tiket Severity critical di Ivanti (PTA Cyberark 37, Malware on Email 4), semuanya Priority 3; tidak ada Priority 0.

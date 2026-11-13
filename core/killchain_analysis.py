@@ -43,7 +43,7 @@ def normalize_severity(value):
     return "Tidak diketahui"
 
 
-def add_effective_severity(df):
+def add_effective_severity(df, sumber=None):
     """Tambah _Severity_Norm, _Stage_Critical, _Severity_Efektif, _Severity_Naik.
     _Severity_Efektif = Critical bila tiket punya tahap >= Exploitation DAN terkonfirmasi (Triage True Positive
     atau Cause Code Breach - Reported). Tiket yang belum terkonfirmasi tetap memakai severity aslinya: Critical
@@ -72,6 +72,15 @@ def add_effective_severity(df):
             eff.append("High")  # Critical dari alert Splunk tanpa konfirmasi analyst: tidak memicu CSIRT
         else:
             eff.append(sev)
+    if sumber is None:
+        from config import settings as _st
+        sumber = getattr(_st, "SEVERITY_SUMBER", "ivanti")
+    df["_Kandidat_Critical"] = [bool(c) for c in crit]  # tahap >= Exploitation & terkonfirmasi (informasi saja)
+    if sumber == "ivanti":
+        # Severity = Ivanti apa adanya; tahap Kill Chain tidak mengubah severity.
+        df["_Severity_Efektif"] = df["_Severity_Norm"]
+        df["_Severity_Naik"] = False
+        return df
     df["_Severity_Efektif"] = eff
     df["_Severity_Naik"] = [(_SEV_RANK[e] > _SEV_RANK[a]) for a, e in zip(df["_Severity_Norm"], eff)]
     return df

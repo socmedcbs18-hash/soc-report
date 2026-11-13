@@ -51,7 +51,7 @@ class TestSeverity(unittest.TestCase):
     def test_exploitation_and_later_become_critical(self):
         df = pd.DataFrame({"Severity": ["low", "low", "high", "medium"],
                            "_KillChain_Stages": [["Exploitation"], ["Reconnaissance"], ["Command & Control"], []]})
-        o = add_effective_severity(df)
+        o = add_effective_severity(df, sumber="kill_chain")
         self.assertEqual(o["_Severity_Efektif"].tolist(), ["Critical", "Low", "Critical", "Medium"])
         self.assertEqual(o["_Severity_Naik"].tolist(), [True, False, True, False])
 
@@ -261,6 +261,15 @@ class TestAooNeedsConfirmation(unittest.TestCase):
         self.assertEqual(refine_outcome("", "", "[x]", "[Exploitation]")[1], "[Exploitation]")
 
 
+class TestSeverityFollowsIvanti(unittest.TestCase):
+    def test_default_equals_ivanti(self):
+        df = pd.DataFrame({"Severity": ["critical", "medium", "low"], "_KillChain_Stages": [["Exploitation"]] * 3,
+                           "_Triage": ["False Positive", "True Positive", "True Positive"], "Cause Code": ["", "", ""]})
+        o = add_effective_severity(df)
+        self.assertEqual(o["_Severity_Efektif"].tolist(), ["Critical", "Medium", "Low"])
+        self.assertFalse(o["_Severity_Naik"].any())
+
+
 class TestConfirmedSeverity(unittest.TestCase):
     def test_untriaged_exploitation_not_raised_to_critical(self):
         df = pd.DataFrame({
@@ -269,7 +278,7 @@ class TestConfirmedSeverity(unittest.TestCase):
             "_Triage": ["True Positive", "Unknown", "False Positive", "Unknown"],
             "Cause Code": ["", "", "", "Breach - Reported"],
         })
-        o = add_effective_severity(df)
+        o = add_effective_severity(df, sumber="kill_chain")
         self.assertEqual(o["_Severity_Efektif"].tolist(), ["Critical", "High", "High", "Critical"])
 
 
@@ -291,5 +300,5 @@ class TestImpactNotStage(unittest.TestCase):
             "_Triage": ["False Positive", "True Positive", "Unknown"],
             "Cause Code": ["", "", ""],
         })
-        o = add_effective_severity(df)
+        o = add_effective_severity(df, sumber="kill_chain")
         self.assertEqual(o["_Severity_Efektif"].tolist(), ["High", "Critical", "High"])

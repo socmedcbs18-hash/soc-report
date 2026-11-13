@@ -258,3 +258,7 @@ SLA_TARGET_MENIT = {
 }
 # Bila Severity tiket kosong/tidak baku, pakai Priority Ivanti sebagai pengganti (dicatat di _SLA_Severity_Sumber)
 SLA_PRIORITY_KE_SEVERITY = {0: "Critical", 1: "High", 2: "Medium", 3: "Low"}
+
+# Severity laporan = severity tiket Ivanti apa adanya (keputusan unit/analyst). "ivanti" = tidak ada kenaikan/penurunan
+# otomatis. "kill_chain" = perilaku lama (naik ke Critical dari tahap Exploitation ke atas bila terkonfirmasi).
+SEVERITY_SUMBER = "ivanti"
