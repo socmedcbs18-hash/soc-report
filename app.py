@@ -1095,10 +1095,8 @@ def render_sla_panel(report, key_prefix="sla", detail=False):
     st.caption("MTTR = Created → Active. MTTC = Created → Contained On (batas = SLA MTTC + 5 menit respons). "
                "MTTRV = Created → Resolved On (batas = Total Time). MTTC hanya untuk tiket yang punya Contained On "
                "(median ikut ditampilkan karena rata-rata terdongkrak tiket yang sangat lama).")
-    src = report.get("sla_severity_source")
-    if src is not None and len(src) > 0 and (src["Sumber"].astype(str).str.startswith("Priority").any()):
-        n_p = int(src[src["Sumber"].astype(str).str.startswith("Priority")]["Jumlah"].sum())
-        st.caption(f"ℹ️ {n_p} tiket tidak punya Severity baku; SLA-nya memakai Priority Ivanti sebagai pengganti.")
+    st.caption("ℹ️ Severity = Priority tiket Ivanti (P1 High, P2 Medium, P3 Low). Laporan tidak pernah menampilkan "
+               "Critical karena Critical memicu aktivasi CSIRT.")
 
     c1, c2 = st.columns([3, 2])
     with c1:
