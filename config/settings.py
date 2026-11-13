@@ -257,8 +257,10 @@ SLA_TARGET_MENIT = {
     "Low":      {"mttc": 240, "mttrv": 480, "total": 724},   # 12 jam 4 menit
 }
 # Bila Severity tiket kosong/tidak baku, pakai Priority Ivanti sebagai pengganti (dicatat di _SLA_Severity_Sumber)
-SLA_PRIORITY_KE_SEVERITY = {0: "Critical", 1: "High", 2: "Medium", 3: "Low"}
+# Critical memicu aktivasi CSIRT, jadi laporan TIDAK PERNAH menampilkan Critical: Priority 0 (bila ada) dihitung High.
+PRIORITY_KE_SEVERITY = {0: "High", 1: "High", 2: "Medium", 3: "Low"}
+SLA_PRIORITY_KE_SEVERITY = PRIORITY_KE_SEVERITY
 
 # Severity laporan = severity tiket Ivanti apa adanya (keputusan unit/analyst). "ivanti" = tidak ada kenaikan/penurunan
 # otomatis. "kill_chain" = perilaku lama (naik ke Critical dari tahap Exploitation ke atas bila terkonfirmasi).
-SEVERITY_SUMBER = "ivanti"
+SEVERITY_SUMBER = "priority"

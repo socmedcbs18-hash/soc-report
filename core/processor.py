@@ -509,7 +509,7 @@ class SOCProcessor:
 
         # Skala priority Ivanti di organisasi ini 0-based: 0=Critical, 1=High,
         # 2=Medium, 3=Low (dikonfirmasi user - sebelumnya salah diasumsikan 1-based)
-        priority_to_severity = {0: "Critical", 1: "High", 2: "Medium", 3: "Low"}
+        from config.settings import PRIORITY_KE_SEVERITY as priority_to_severity
         severity_rank = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Informational": 0, "-": -1, "Unknown": -1}
 
         inc = self.incident.dropna(subset=["Priority"]).copy()
@@ -740,7 +740,7 @@ class SOCProcessor:
         # PENTING: ini severity dari Priority TIKET IVANTI (sisi respons/analyst),
         # BUKAN severity rule Splunk (sisi deteksi). Untuk severity dari rule
         # Splunk, lihat kolom Severity di sheet Rule Summary.
-        priority_to_severity = {0: "Critical", 1: "High", 2: "Medium", 3: "Low"}
+        from config.settings import PRIORITY_KE_SEVERITY as priority_to_severity
         severity_order = ["Critical", "High", "Medium", "Low", "Priority Kosong (Ivanti)"]
 
         inc = self.incident.copy()

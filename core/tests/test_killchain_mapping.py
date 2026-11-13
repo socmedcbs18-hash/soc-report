@@ -140,20 +140,21 @@ class TestStateMachineDurations(unittest.TestCase):
         t0 = pd.Timestamp("2026-10-01 10:00:00")
         m = lambda x: t0 + pd.Timedelta(minutes=x)
         inc = pd.DataFrame({
-            "Severity": ["critical", "critical", "high", "low", "-"],
-            "Priority": [0, 0, 1, 3, 2],
+            "Severity": ["critical", "critical", "high", "low", "-"],     # label Splunk diabaikan; Priority yang dipakai
+            "Priority": [0, 1, 1, 3, 2],                                   # Priority 0 dihitung High (tanpa Critical)
             "Created On": [t0] * 5,
             "Responded On": [m(7), m(2), m(4), m(4), m(4)],
-            "Contained On": [m(35), m(25), m(56), m(100), m(130)],     # batas: 25 / 25 / 55 / 245 / 125 (Medium via Priority)
-            "Resolved On": [m(70), m(64), m(150), m(800), m(300)],     # batas: 64 / 64 / 154 / 724 / 364
+            "Contained On": [m(60), m(55), m(56), m(100), m(130)],     # batas: 55 / 55 / 55 / 245 / 125
+            "Resolved On": [m(160), m(154), m(150), m(800), m(300)],   # batas: 154 / 154 / 154 / 724 / 364
         })
         f = compute_sla_flags(inc, compute_state_durations(inc))
-        self.assertEqual(f["_SLA_Severity"].tolist(), ["Critical", "Critical", "High", "Low", "Medium"])
+        self.assertEqual(f["_SLA_Severity"].tolist(), ["High", "High", "High", "Low", "Medium"])
+        self.assertNotIn("Critical", f["_SLA_Severity"].tolist())
         self.assertEqual(f["_Breach_MTTR"].tolist(), [True, False, False, False, False])
         self.assertEqual(f["_Breach_MTTC"].tolist(), [True, False, True, False, True])
         self.assertEqual(f["_Breach_MTTRV"].tolist(), [True, False, False, True, False])
         self.assertEqual(f["_Jenis_Breach"].iloc[0], "MTTR, MTTC, MTTRV")
-        self.assertEqual(f["_MTTC_Sisa_setelah_Active_menit"].iloc[0], 18)  # batas 25 - MTTR 7
+        self.assertEqual(f["_MTTC_Sisa_setelah_Active_menit"].iloc[0], 48)  # batas 55 - MTTR 7
 
     def test_mttr_breach_is_created_to_active_over_5_minutes(self):
         from core.processor import SOCProcessor
@@ -262,11 +263,13 @@ class TestAooNeedsConfirmation(unittest.TestCase):
 
 
 class TestSeverityFollowsIvanti(unittest.TestCase):
-    def test_default_equals_ivanti(self):
-        df = pd.DataFrame({"Severity": ["critical", "medium", "low"], "_KillChain_Stages": [["Exploitation"]] * 3,
-                           "_Triage": ["False Positive", "True Positive", "True Positive"], "Cause Code": ["", "", ""]})
+    def test_default_from_priority_never_critical(self):
+        df = pd.DataFrame({"Severity": ["critical", "medium", "low", "high"], "Priority": [3, 0, 2, 1],
+                           "_KillChain_Stages": [["Exploitation"]] * 4,
+                           "_Triage": ["True Positive"] * 4, "Cause Code": [""] * 4})
         o = add_effective_severity(df)
-        self.assertEqual(o["_Severity_Efektif"].tolist(), ["Critical", "Medium", "Low"])
+        self.assertEqual(o["_Severity_Efektif"].tolist(), ["Low", "High", "Medium", "High"])
+        self.assertNotIn("Critical", o["_Severity_Efektif"].tolist())
         self.assertFalse(o["_Severity_Naik"].any())
 
 

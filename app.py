@@ -1170,7 +1170,7 @@ def render_killchain_mapping_panels(report, df, key_prefix="kcm", detail=True):
     if df is None or len(df) == 0 or "_Severity_Efektif" not in df.columns:
         return
     st.markdown("#### 🔴 Severity per Tahap Kill Chain")
-    st.caption("Severity mengikuti tiket Ivanti apa adanya (tidak dinaikkan otomatis dari tahap Kill Chain). "
+    st.caption("Severity = Priority tiket Ivanti dan tidak pernah Critical (Critical memicu CSIRT); tidak dinaikkan dari tahap Kill Chain. "
                "'Tiket tahap lanjut terkonfirmasi' hanya informasi untuk ditinjau analyst/CSIRT.")
     n_all = len(df)
     n_up = int(df["_Severity_Naik"].sum())
@@ -1179,13 +1179,13 @@ def render_killchain_mapping_panels(report, df, key_prefix="kcm", detail=True):
     tp = df[df["_Triage"] == "True Positive"] if "_Triage" in df.columns else df.iloc[0:0]
     m1, m2, m3, m4 = st.columns(4)
     n_kand = int(df["_Kandidat_Critical"].sum()) if "_Kandidat_Critical" in df.columns else n_up
-    m1.metric("Critical (severity Ivanti)", n_crit_org)
+    m1.metric("Label Critical di alert Splunk (tidak dipakai)", n_crit_org)
     m2.metric("Critical ditampilkan", n_crit_eff)
     m3.metric("Tiket tahap lanjut terkonfirmasi", n_kand)
     m4.metric("Critical efektif - True Positive", int((tp["_Severity_Efektif"] == "Critical").sum()) if len(tp) else 0)
     if n_all and n_crit_eff / n_all > 0.2:
-        st.warning(f"⚠️ {round(100 * n_crit_eff / n_all, 1)}% tiket berseverity Critical di Ivanti. Periksa apakah "
-                   "label Critical berasal dari severity alert Splunk, bukan keputusan analyst.")
+        st.warning(f"⚠️ {round(100 * n_crit_eff / n_all, 1)}% tiket berseverity Critical. Seharusnya tidak ada; "
+                   "periksa setelan SEVERITY_SUMBER.")
     ksev = build_killchain_severity(df)
     if ksev is not None and len(ksev) > 0:
         st.dataframe(ksev, use_container_width=True)

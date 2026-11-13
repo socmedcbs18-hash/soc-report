@@ -13,23 +13,22 @@ LEVELS = ["Critical", "High", "Medium", "Low"]
 
 
 def sla_severity(inc):
-    """Severity untuk SLA: kolom Severity bila baku, selain itu Priority Ivanti. Return (severity, sumber)."""
+    """Severity untuk SLA = Priority tiket Ivanti (0/1 High, 2 Medium, 3 Low; tanpa Critical). Bila Priority kosong,
+    pakai kolom Severity (Critical dihitung High). Return (severity, sumber)."""
     n = len(inc)
     sev = pd.Series([None] * n, index=inc.index, dtype=object)
     src = pd.Series(["Tidak diketahui"] * n, index=inc.index, dtype=object)
-    if "Severity" in inc.columns:
-        v = inc["Severity"].astype(str).str.strip().str.lower()
-        m = v.isin(["critical", "high", "medium", "low"])
-        sev[m] = v[m].str.title()
-        src[m] = "Severity"
-        m2 = v.isin(["informational", "info", "notice"])
-        sev[m2] = "Low"
-        src[m2] = "Severity (Informational dianggap Low)"
     if "Priority" in inc.columns:
         pr = pd.to_numeric(inc["Priority"], errors="coerce").map(SLA_PRIORITY_KE_SEVERITY)
-        m3 = sev.isna() & pr.notna()
-        sev[m3] = pr[m3]
-        src[m3] = "Priority (Severity kosong)"
+        m = pr.notna()
+        sev[m] = pr[m]
+        src[m] = "Priority Ivanti"
+    if "Severity" in inc.columns:
+        v = inc["Severity"].astype(str).str.strip().str.lower()
+        v = v.replace({"critical": "high", "informational": "low", "info": "low", "notice": "low"})
+        m2 = sev.isna() & v.isin(["high", "medium", "low"])
+        sev[m2] = v[m2].str.title()
+        src[m2] = "Severity (Priority kosong; Critical dihitung High)"
     return sev, src
 
 

@@ -74,11 +74,16 @@ def add_effective_severity(df, sumber=None):
             eff.append(sev)
     if sumber is None:
         from config import settings as _st
-        sumber = getattr(_st, "SEVERITY_SUMBER", "ivanti")
+        sumber = getattr(_st, "SEVERITY_SUMBER", "priority")
     df["_Kandidat_Critical"] = [bool(c) for c in crit]  # tahap >= Exploitation & terkonfirmasi (informasi saja)
-    if sumber == "ivanti":
-        # Severity = Ivanti apa adanya; tahap Kill Chain tidak mengubah severity.
-        df["_Severity_Efektif"] = df["_Severity_Norm"]
+    if sumber in ("priority", "ivanti"):
+        # Severity = Priority tiket Ivanti (tanpa Critical); tahap Kill Chain dan label Splunk tidak mengubahnya.
+        if sumber == "priority" and "Priority" in df.columns:
+            from config import settings as _st2
+            pr = pd.to_numeric(df["Priority"], errors="coerce").map(_st2.PRIORITY_KE_SEVERITY)
+            df["_Severity_Efektif"] = pr.fillna("Tidak diketahui").values
+        else:
+            df["_Severity_Efektif"] = ["High" if x == "Critical" else x for x in df["_Severity_Norm"]]
         df["_Severity_Naik"] = False
         return df
     df["_Severity_Efektif"] = eff
