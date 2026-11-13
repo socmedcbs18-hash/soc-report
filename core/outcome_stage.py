@@ -6,7 +6,8 @@ Prinsip (standar Lockheed Martin Kill Chain / MITRE ATT&CK):
 - Cause Code 'Prevented' (diisi analyst; di data Sept-Okt hanya pada tiket yang belum diberi Triage) = serangan dicegah sebelum berdampak: tahap dibatasi sampai
   Delivery (percobaan), tidak dihitung Exploitation/Installation/C2/AOO.
 - True Positive 'Breach - Reported' atau TP tanpa Cause Code: label rule dipertahankan.
-- Triage kosong (belum di-triage): label rule dipertahankan, ditandai belum terkonfirmasi.
+- Triage kosong (belum di-triage): label rule dipertahankan, ditandai belum terkonfirmasi, KECUALI Actions on Objectives
+  (tujuan tercapai) yang butuh konfirmasi True Positive / Breach - Reported.
 """
 import pandas as pd
 
@@ -38,6 +39,10 @@ def refine_outcome(triage, cause, mitre, kc):
         return mitre, kc, "Cause Code Breach - Reported: tahap sesuai label rule", False
     if tri.startswith("true"):
         return mitre, kc, "True Positive tanpa Cause Code: tahap sesuai label rule (belum tentu tercapai)", False
+    if "Actions on Objectives" in st:
+        # AOO = tujuan penyerang TERCAPAI (data keluar/dampak). Tanpa konfirmasi analyst tidak boleh diklaim.
+        sisa = [x for x in st if x != "Actions on Objectives"]
+        return mitre, _fmt(sisa), "Belum di-triage: Actions on Objectives butuh konfirmasi (True Positive / Breach - Reported), tidak dihitung", True
     return mitre, kc, "Belum di-triage dan tanpa Cause Code: label rule dipertahankan, belum terkonfirmasi", False
 
 

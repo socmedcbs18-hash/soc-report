@@ -251,6 +251,16 @@ class TestOutcomeStage(unittest.TestCase):
         self.assertEqual(refine_outcome("True Positive", "", "[x]", "[Exploitation]")[1], "[Exploitation]")
 
 
+class TestAooNeedsConfirmation(unittest.TestCase):
+    def test_untriaged_aoo_dropped_but_tp_kept(self):
+        from core.outcome_stage import refine_outcome
+        m, k, b, ch = refine_outcome("", "", "[TA0009, T1530]", "[Actions on Objectives]")
+        self.assertEqual(k, "[]"); self.assertTrue(ch)
+        self.assertEqual(refine_outcome("True Positive", "", "[x]", "[Actions on Objectives]")[1], "[Actions on Objectives]")
+        self.assertEqual(refine_outcome("", "Breach - Reported", "[x]", "[Actions on Objectives]")[1], "[Actions on Objectives]")
+        self.assertEqual(refine_outcome("", "", "[x]", "[Exploitation]")[1], "[Exploitation]")
+
+
 class TestConfirmedSeverity(unittest.TestCase):
     def test_untriaged_exploitation_not_raised_to_critical(self):
         df = pd.DataFrame({
