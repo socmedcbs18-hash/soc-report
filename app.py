@@ -1098,6 +1098,26 @@ def render_sla_panel(report, key_prefix="sla", detail=False):
     st.caption("ℹ️ Severity = Priority tiket Ivanti (P1 High, P2 Medium, P3 Low). Laporan tidak pernah menampilkan "
                "Critical karena Critical memicu aktivasi CSIRT.")
 
+    p95 = report.get("sla_p95")
+    if p95 is not None and len(p95) > 0:
+        st.markdown("**P95 (persentil ke-95) per Severity - semua tiket**")
+        def _p95c(r, n):
+            v, b, s = r.get(f"P95_{n}_menit"), r.get(f"Batas_{n}_menit"), r.get(f"Status_{n}")
+            if pd.isna(v):
+                return "-"
+            if b is None or pd.isna(b) or s == "-":
+                return f"{v:g} mnt"
+            return f"{v:g} mnt (batas {b:g}) {'✅' if s == 'Dalam batas' else '⚠️'}"
+        p95s = pd.DataFrame({"Severity": p95["Severity"], "Tiket": p95["Jumlah_Tiket"],
+                             "P95 MTTR": p95.apply(lambda r: _p95c(r, "MTTR"), axis=1),
+                             "P95 MTTC": p95.apply(lambda r: _p95c(r, "MTTC"), axis=1),
+                             "P95 MTTRV": p95.apply(lambda r: _p95c(r, "MTTRV"), axis=1)})
+        st.dataframe(p95s, hide_index=True, use_container_width=True)
+        st.caption("P95 = 95% tiket selesai dalam waktu ini atau lebih cepat (5% terlama di atasnya). Lebih adil dari "
+                   "rata-rata karena tidak terdongkrak tiket ekstrem. MTTC hanya dari tiket yang punya Contained On.")
+    else:
+        st.info("P95 belum tersedia: generate ulang periode ini.")
+
     c1, c2 = st.columns([3, 2])
     with c1:
         st.markdown("**Rata-rata waktu per Severity (menit)**")
@@ -1130,14 +1150,95 @@ def render_breach_explorer(report, key_prefix="sla", detail=False):
     st.caption(f"{len(d)} tiket breach dari filter yang dipilih (total {len(det)} tiket breach periode ini).")
     if len(d) == 0:
         return
-    per = (d.groupby(["Insiden", "Severity"]).agg(Tiket_Breach=("Tiket", "count"),
-                                                 Kelebihan_Maks_menit=("Kelebihan_terbesar_menit", "max")).reset_index()
-           .sort_values("Tiket_Breach", ascending=False))
-    top_n = per.head(15 if detail else 8)
-    st.markdown("Insiden dengan breach terbanyak")
-    st.dataframe(top_n, hide_index=True, use_container_width=True)
+    flags = report.get("sla_ticket_flags")
+    if flags is not None and len(flags) > 0:
+        from core.sla import incident_breach_ratio
+        o1, o2 = st.columns([2, 1])
+        urut = o1.radio("Urutkan insiden berdasarkan", ["Jumlah tiket breach", "Persentase breach"], horizontal=True,
+                        key=f"{key_prefix}_breach_urut")
+        min_t = o2.number_input("Minimal tiket per insiden (untuk urut persentase)", 1, 100, 5, key=f"{key_prefix}_breach_min")
+        ratio = incident_breach_ratio(flags, sev_sel, jenis_sel)
+        ratio = ratio[ratio["Tiket_Breach"] > 0]
+        mx = (ratio[ratio["Total_Tiket"] >= min_t].sort_values(["%_Breach", "Tiket_Breach"], ascending=False)
+              if urut == "Persentase breach" else ratio.sort_values(["Tiket_Breach", "%_Breach"], ascending=False))
+        st.markdown("Insiden dengan breach terbanyak, dibanding tiket yang tidak breach")
+        st.dataframe(mx.head(15 if detail else 8), hide_index=True, use_container_width=True,
+                     column_config={"%_Breach": st.column_config.ProgressColumn("% Breach", min_value=0, max_value=100, format="%.1f%%"),
+                                    "%_Tidak_Breach": st.column_config.NumberColumn("% Tidak breach", format="%.1f%%")})
+        st.caption("Total_Tiket = semua tiket insiden itu pada periode ini; Tiket_Tidak_Breach = yang selesai dalam batas SLA. "
+                   "Insiden volume besar dengan % breach kecil beda masalahnya dengan insiden kecil yang hampir selalu breach.")
+    else:
+        per = (d.groupby(["Insiden", "Severity"]).agg(Tiket_Breach=("Tiket", "count"),
+                                                     Kelebihan_Maks_menit=("Kelebihan_terbesar_menit", "max")).reset_index()
+               .sort_values("Tiket_Breach", ascending=False))
+        st.markdown("Insiden dengan breach terbanyak")
+        st.dataframe(per.head(15 if detail else 8), hide_index=True, use_container_width=True)
     with st.expander(f"Daftar {len(d)} tiket breach"):
         st.dataframe(d, hide_index=True, use_container_width=True)
+
+
+def render_tp_top_incidents(report, key_prefix="tptop"):
+    """Top 10 insiden True Positive: tentang apa, sistem mana, siapa (permintaan CTO)."""
+    top = report.get("tp_top_incidents")
+    tk = report.get("tp_detail")
+    if top is None or len(top) == 0:
+        st.info("Detail True Positive belum tersedia (tidak ada tiket True Positive, atau laporan dibuat versi lama: generate ulang).")
+        return
+    st.markdown("### 🧩 Top 10 Insiden True Positive: tentang apa, sistem mana, siapa")
+    st.caption("Hanya tiket Triage = True Positive. Sistem, orang, dan sumber serangan diambil dari isi Description alert di tiket; "
+               "bila alert tidak mencantumkannya tampil '-'. Rule jaringan/WAF umumnya tidak punya user terdampak.")
+    st.dataframe(top.drop(columns=["No"]), hide_index=True, use_container_width=True)
+    pick = st.selectbox("Lihat tiket per insiden", list(top["Insiden"]), key=f"{key_prefix}_pick")
+    sub = tk[tk["Insiden"] == pick] if tk is not None and len(tk) else pd.DataFrame()
+    with st.expander(f"Daftar {len(sub)} tiket True Positive: {pick[:70]}"):
+        st.dataframe(sub, hide_index=True, use_container_width=True)
+
+
+def render_fp_panel(report, key_prefix="fp", detail=True):
+    """Kualitas deteksi: True Positive vs False Positive per rule (permintaan CTO: TP harus lebih banyak dari FP)."""
+    import plotly.express as px
+    s = report.get("fp_summary") or {}
+    per = report.get("fp_by_rule")
+    if not s or per is None or len(per) == 0:
+        st.info("Analisis False Positive belum tersedia: generate ulang periode ini (butuh kolom Triage dari Ivanti).")
+        return
+    st.markdown("**🎯 Kualitas Deteksi: True Positive vs False Positive**")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("True Positive", f"{s['tp']:,}", f"{s['pct_tp']}% dari tiket ter-triage" if s.get("pct_tp") is not None else None, delta_color="off")
+    m2.metric("False Positive", f"{s['fp']:,}", f"{s['pct_fp']}% dari tiket ter-triage" if s.get("pct_fp") is not None else None, delta_color="off")
+    m3.metric("Target", "TP > FP")
+    m4.metric("FP yang perlu dipangkas", f"{s['fp_dipotong_agar_tp_lebih_banyak']:,}")
+    if s["fp"] > s["tp"]:
+        st.warning(f"⚠️ False Positive ({s['fp']:,}) masih lebih banyak dari True Positive ({s['tp']:,}). "
+                   f"Perlu memangkas sedikitnya {s['fp_dipotong_agar_tp_lebih_banyak']:,} tiket False Positive (dengan TP tetap) agar TP lebih banyak.")
+    else:
+        st.success("✅ True Positive sudah lebih banyak dari False Positive.")
+    if s.get("belum"):
+        st.caption(f"{s['belum']:,} tiket belum di-triage tidak dihitung dalam persentase.")
+    show = per.head(15 if detail else 5)
+    if detail:
+        top15 = per.head(15).iloc[::-1]
+        fig = px.bar(top15.melt(id_vars="Insiden", value_vars=["False_Positive", "True_Positive"], var_name="Triage", value_name="Tiket"),
+                     x="Tiket", y="Insiden", color="Triage", orientation="h", barmode="stack")
+        fig.update_layout(height=520, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None)
+        st.plotly_chart(fig, use_container_width=True)
+    st.markdown("Rule dengan False Positive terbanyak" + (" (15 teratas)" if detail else " (5 teratas)"))
+    st.dataframe(show.drop(columns=["No"]), hide_index=True, use_container_width=True,
+                 column_config={"%_FP": st.column_config.ProgressColumn("% FP", min_value=0, max_value=100, format="%.1f%%")})
+    if detail:
+        with st.expander(f"Semua {len(per)} rule"):
+            st.dataframe(per, hide_index=True, use_container_width=True)
+        from core.triage_quality import simulate_reduction
+        st.markdown("**Simulasi perbaikan (perkiraan, bukan hasil tes)**")
+        c1, c2 = st.columns(2)
+        n = c1.slider("Jumlah rule teratas yang dituning", 1, min(30, len(per)), 10, key=f"{key_prefix}_n")
+        red = c2.slider("Penurunan False Positive pada rule itu (%)", 0, 100, 80, key=f"{key_prefix}_red")
+        r = simulate_reduction(per, s, n, red)
+        if r:
+            st.info(f"Tiket berkurang sekitar {r['tiket_berkurang']:,}. False Positive menjadi {r['fp_baru']:,} "
+                    f"({r['pct_fp_baru']}% dari tiket ter-triage) dan True Positive tetap {r['tp']:,}. "
+                    + ("True Positive menjadi lebih banyak ✅" if r["tp_lebih_banyak"] else "True Positive masih belum lebih banyak."))
+        st.caption("Asumsi: True Positive tidak ikut berkurang. Tuning harus divalidasi analyst agar tidak menutup True Positive.")
 
 
 def render_stage_incidents(df, kc_raw, key_prefix="kcstage"):
@@ -1521,6 +1622,8 @@ if current_page == "📋 Executive Summary":
             st.metric("Detection Rate", _dr[0] if len(_dr) else "-")
     else:
         st.info("ℹ️ Belum ada data tiket untuk periode ini.")
+    if len(report.get("fp_by_rule", [])) > 0:
+        render_fp_panel(report, key_prefix="sumfp", detail=False)
     if st.button("Lihat Detail Ticket Performance →", key="btn_goto_efektivitas"):
         goto_page("Efektivitas")
 
@@ -1673,6 +1776,7 @@ if current_page == "📋 Executive Summary":
     else:
         st.warning("⚠️ Belum ada data Kill Chain untuk subset yang dipilih.")
     render_stage_incidents(mitre_df, kc_raw)
+    render_tp_top_incidents(report)
 
     # --- TURUNAN LANGSUNG dari anchor: korelasi Tactic->Technique via mini-Sunburst,
     # BUKAN 2 bar chart terpisah (yang tidak menunjukkan hubungan Tactic mana
@@ -2313,6 +2417,7 @@ if current_page == "Efektivitas":
     if len(report.get("sla_metrics", [])) > 0:
         st.markdown("### SLA per Severity (MOM) - MTTR, MTTC, MTTRV dari Logged")
         render_sla_panel(report, key_prefix="eff", detail=True)
+        render_fp_panel(report, key_prefix="efffp", detail=True)
         with st.expander("Tabel lengkap per Priority"):
             st.dataframe(report["sla_metrics"], use_container_width=True)
         if report.get("sla_metrics_note"):

@@ -1315,6 +1315,9 @@ class SOCProcessor:
         self.sla_severity_source = inc["_SLA_Severity_Sumber"].value_counts().rename_axis("Sumber").reset_index(name="Jumlah")
 
         self.sla_breach_detail, self.sla_breach_by_incident = build_breach_tables(inc)
+        from core.sla import build_p95_table, build_ticket_flags
+        self.sla_p95 = build_p95_table(inc)
+        self.sla_ticket_flags = build_ticket_flags(inc)
 
         self.sla_metrics_note = (
             f"Sesuai MOM unit head - semua dihitung dari Logged (Created On): MTTR = Created -> Active (batas {SLA_MTTR_MENIT} menit); "
@@ -2330,6 +2333,10 @@ class SOCProcessor:
             # BUKAN di-generate ulang, cuma di-filter ulang di UI layer.
             self.mitre_enriched_raw = _full_enriched
             self.triage_summary = build_triage_summary(enriched)
+            from core.tp_detail import build_tp_tables
+            from core.triage_quality import build_fp_analysis
+            self.tp_top_incidents, self.tp_detail = build_tp_tables(_full_enriched, top_n=10)
+            self.fp_summary, self.fp_by_rule = build_fp_analysis(_full_enriched)
             # --- MOM manajemen (Nov 2026) ---
             self.killchain_severity = build_killchain_severity(enriched)
             self.severity_raise_by_rule = build_severity_raise_by_rule(enriched)
@@ -2615,6 +2622,12 @@ class SOCProcessor:
             "sla_breach_detail": self.sla_breach_detail,
             "sla_breach_by_incident": self.sla_breach_by_incident,
             "sla_severity_source": self.sla_severity_source,
+            "tp_top_incidents": getattr(self, "tp_top_incidents", pd.DataFrame()),
+            "tp_detail": getattr(self, "tp_detail", pd.DataFrame()),
+            "fp_summary": getattr(self, "fp_summary", {}),
+            "fp_by_rule": getattr(self, "fp_by_rule", pd.DataFrame()),
+            "sla_p95": self.sla_p95,
+            "sla_ticket_flags": self.sla_ticket_flags,
             "sla_metrics_note": self.sla_metrics_note,
             "soc_individual_kpi": self.soc_individual_kpi,
             "priority": self.priority,

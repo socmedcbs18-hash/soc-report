@@ -2789,3 +2789,13 @@ Temuan: September hanya 173 dari 983 tiket (17,6%) berstatus True Positive dan 5
 - app.py: panel severity per tahap Kill Chain diperbarui; tabel "rule yang menaikkan severity" dihapus.
 - Temuan: Oktober punya 41 tiket Severity critical di Ivanti (PTA Cyberark 37, Malware on Email 4), semuanya Priority 3; tidak ada Priority 0.
 - Revisi: sumber severity = Priority Ivanti (0/1 High, 2 Medium, 3 Low; `PRIORITY_KE_SEVERITY` di settings), Critical tidak pernah tampil (Priority 0 dihitung High). `SEVERITY_SUMBER = "priority"`. SLA per severity memakai severity ini. Total tiket tidak berubah (Sept 987, Okt 1675).
+
+## 131. MoM CTO (16 Nov 2026): P95, rasio breach, detail True Positive, analisis False Positive
+
+- `core/sla.py`: `build_p95_table` (P95 MTTR/MTTC/MTTRV per severity, semua tiket, dengan batas dan status), `build_ticket_flags` dan `incident_breach_ratio` (total, breach, tidak breach, persentase per insiden; filter severity dan jenis breach).
+- `core/tp_detail.py` (baru): ekstraksi sistem, orang, sumber serangan, dan detail kejadian dari Description tiket; `build_tp_tables` = Top 10 insiden True Positive plus daftar tiketnya.
+- `core/triage_quality.py` (baru): ranking False Positive per rule, kumulatif, rekomendasi tuning, simulasi penurunan FP.
+- processor: report keys `sla_p95`, `sla_ticket_flags`, `tp_top_incidents`, `tp_detail`, `fp_summary`, `fp_by_rule`.
+- app.py: tabel P95 di panel SLA; Breach Explorer menampilkan tiket tidak breach dan bisa diurut jumlah atau persentase; bagian "Top 10 Insiden True Positive" di Kill Chain; panel "Kualitas Deteksi TP vs FP" di Efektivitas (lengkap, dengan simulasi) dan Executive Summary (ringkas).
+- pptx: 4 slide baru (P95, rasio breach, False Positive, Top 10 True Positive).
+- Tes `TestCtoMom`.

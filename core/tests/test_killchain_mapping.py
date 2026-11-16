@@ -305,3 +305,50 @@ class TestImpactNotStage(unittest.TestCase):
         })
         o = add_effective_severity(df, sumber="kill_chain")
         self.assertEqual(o["_Severity_Efektif"].tolist(), ["High", "Critical", "High"])
+
+
+class TestCtoMom(unittest.TestCase):
+    def test_p95_per_severity(self):
+        from core.sla import build_p95_table
+        n = 100
+        inc = pd.DataFrame({"_SLA_Severity": ["Low"] * n, "MTTR_sec": [i * 6.0 for i in range(1, n + 1)],
+                            "MTTC_sec": [None] * n, "MTTRV_sec": [i * 60.0 for i in range(1, n + 1)]})
+        t = build_p95_table(inc)
+        low = t[t["Severity"] == "Low"].iloc[0]
+        self.assertAlmostEqual(low["P95_MTTRV_menit"], 95.05, places=1)
+        self.assertEqual(low["Tiket_MTTC"], 0)
+        self.assertEqual(low["Status_MTTRV"], "Dalam batas")
+        self.assertEqual(t.iloc[-1]["Severity"], "SEMUA")
+
+    def test_incident_breach_ratio(self):
+        from core.sla import incident_breach_ratio
+        f = pd.DataFrame({"Tiket": list("abcd"), "Insiden": ["X", "X", "X", "Y"], "Severity": ["Low"] * 4,
+                          "Breach_MTTR": [True, False, False, False], "Breach_MTTC": [False, True, False, False],
+                          "Breach_MTTRV": [False] * 4})
+        r = incident_breach_ratio(f).set_index("Insiden")
+        self.assertEqual((r.loc["X", "Total_Tiket"], r.loc["X", "Tiket_Breach"], r.loc["X", "Tiket_Tidak_Breach"]), (3, 2, 1))
+        self.assertEqual(r.loc["X", "%_Breach"], 66.7)
+        self.assertEqual(incident_breach_ratio(f, jenis=["MTTR"]).set_index("Insiden").loc["X", "Tiket_Breach"], 1)
+
+    def test_extract_entities(self):
+        from core.tp_detail import extract_entities
+        e = extract_entities("UserId: a@alto.id app: SharePoint file_path: https://x.sharepoint.com/sites/FinanceTeam/ "
+                             "signature: FileDownloaded src: 1.2.3.4 View result in Splunk: https://s")
+        self.assertEqual(e["Orang"], ["a@alto.id"]); self.assertEqual(e["Sistem"], ["SharePoint (FinanceTeam)"])
+        self.assertEqual(e["Sumber"], ["1.2.3.4"]); self.assertEqual(e["Detail"], ["FileDownloaded"])
+        w = extract_entities("action: Blocked recipients: b@alto.id threat: [\"Phish: x\"] user_id: ThreatIntel workload: ThreatIntelligence")
+        self.assertEqual(w["Orang"], ["b@alto.id"]); self.assertIn("Email O365 (Exchange Online)", w["Sistem"])
+
+    def test_tp_top_and_fp_analysis(self):
+        from core.tp_detail import build_tp_tables
+        from core.triage_quality import build_fp_analysis
+        df = pd.DataFrame({"Incident": ["1", "2", "3", "4"], "Summary": ["R1 - Severity 3", "R1", "R2", "R2"],
+                           "Triage": ["True Positive", "True Positive", "False Positive", "False Positive"],
+                           "Description": ["client_ip: 9.9.9.9 host: w.alto.id"] * 4, "Owner": list("abab"),
+                           "Incident KillChain": ["[Delivery]"] * 4, "Incident MITRE": ["[T1190]"] * 4,
+                           "Created On": pd.date_range("2026-10-01", periods=4)})
+        top, tk = build_tp_tables(df)
+        self.assertEqual(len(top), 1); self.assertEqual(top.iloc[0]["Jumlah_TP"], 2); self.assertEqual(len(tk), 2)
+        s, p = build_fp_analysis(df)
+        self.assertEqual((s["tp"], s["fp"], s["fp_dipotong_agar_tp_lebih_banyak"]), (2, 2, 1))
+        self.assertEqual(p.iloc[0]["Insiden"], "R2"); self.assertEqual(p.iloc[0]["%_FP"], 100.0)

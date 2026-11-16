@@ -96,3 +96,60 @@ def build_breach_tables(inc, id_col="Incident", name_col="Summary"):
                                               MTTC=("_b", "sum"), MTTRV=("_c", "sum")).reset_index()
     per = g.sort_values("Jumlah_Breach", ascending=False).reset_index(drop=True)
     return det, per
+
+
+def build_p95_table(inc):
+    """Persentil ke-95 MTTR/MTTC/MTTRV (menit, dari Logged) per Severity untuk SEMUA tiket (permintaan CTO).
+    MTTC hanya tiket yang punya Contained On. Status = apakah P95 masih dalam batas SLA."""
+    from config.settings import SLA_TARGET_MENIT
+    rows = []
+    groups = [(k, inc[inc["_SLA_Severity"].fillna("Tidak diketahui") == k]) for k in LEVELS + ["Tidak diketahui"]]
+    groups.append(("SEMUA", inc))
+    for k, g in groups:
+        if len(g) == 0:
+            continue
+        t = SLA_TARGET_MENIT.get(k, {})
+        lim = {"mttr": float(SLA_MTTR_MENIT), "mttc": (t["mttc"] + SLA_MTTR_MENIT) if t else np.nan,
+               "mttrv": float(t["total"]) if t else np.nan}
+        row = {"Severity": k, "Jumlah_Tiket": len(g)}
+        for name, col in [("MTTR", "MTTR_sec"), ("MTTC", "MTTC_sec"), ("MTTRV", "MTTRV_sec")]:
+            x = pd.to_numeric(g[col], errors="coerce").dropna() / 60
+            p95 = float(np.percentile(x, 95)) if len(x) else np.nan
+            row[f"Tiket_{name}"] = int(len(x))
+            row[f"P95_{name}_menit"] = round(p95, 1) if len(x) else None
+            row[f"Batas_{name}_menit"] = lim[name.lower()] if k != "SEMUA" else None
+            row[f"Status_{name}"] = ("-" if k == "SEMUA" or not len(x) or np.isnan(lim[name.lower()])
+                                     else ("Dalam batas" if p95 <= lim[name.lower()] else "Melewati batas"))
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def build_ticket_flags(inc, id_col="Incident", name_col="Summary"):
+    """Satu baris per tiket dengan flag breach, untuk rasio breach vs tidak breach per insiden."""
+    return pd.DataFrame({
+        "Tiket": inc[id_col].astype(str) if id_col in inc.columns else inc.index.astype(str),
+        "Insiden": inc[name_col].astype(str) if name_col in inc.columns else "",
+        "Severity": inc["_SLA_Severity"].fillna("Tidak diketahui"),
+        "Breach_MTTR": inc["_Breach_MTTR"].astype(bool), "Breach_MTTC": inc["_Breach_MTTC"].astype(bool),
+        "Breach_MTTRV": inc["_Breach_MTTRV"].astype(bool),
+    }).reset_index(drop=True)
+
+
+def incident_breach_ratio(flags, severities=None, jenis=None, min_tiket=1):
+    """Per insiden: total tiket, tiket breach, tidak breach, % (permintaan CTO). jenis: subset ['MTTR','MTTC','MTTRV']."""
+    f = flags
+    if severities is not None:
+        f = f[f["Severity"].isin(severities)]
+    jenis = jenis or ["MTTR", "MTTC", "MTTRV"]
+    if len(f) == 0:
+        return pd.DataFrame(columns=["Insiden", "Severity", "Total_Tiket", "Tiket_Breach", "Tiket_Tidak_Breach",
+                                     "%_Breach", "%_Tidak_Breach"])
+    br = np.zeros(len(f), dtype=bool)
+    for j in jenis:
+        br |= f[f"Breach_{j}"].values
+    g = f.assign(_b=br).groupby(["Insiden", "Severity"]).agg(Total_Tiket=("Tiket", "count"), Tiket_Breach=("_b", "sum")).reset_index()
+    g["Tiket_Breach"] = g["Tiket_Breach"].astype(int)
+    g["Tiket_Tidak_Breach"] = g["Total_Tiket"] - g["Tiket_Breach"]
+    g["%_Breach"] = (100 * g["Tiket_Breach"] / g["Total_Tiket"]).round(1)
+    g["%_Tidak_Breach"] = (100 - g["%_Breach"]).round(1)
+    return g[g["Total_Tiket"] >= min_tiket]

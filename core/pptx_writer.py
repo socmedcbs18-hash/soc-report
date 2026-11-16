@@ -668,6 +668,49 @@ class PPTXWriter:
             pp.font.color.rgb = DARK_TEXT
             self._add_table(slide, show, Inches(0.6), Inches(1.7), Inches(12.1), Inches(4.5), max_rows=10)
 
+    def _table_slide(self, title, note_text, df, max_rows=12):
+        if df is None or len(df) == 0:
+            return
+        slide = self._new_slide()
+        self._add_title_bar(slide, title, self.period)
+        note = slide.shapes.add_textbox(Inches(0.6), Inches(1.05), Inches(12.1), Inches(0.5))
+        note.text_frame.word_wrap = True
+        pp = note.text_frame.paragraphs[0]
+        pp.text = note_text
+        pp.font.size = Pt(10)
+        pp.font.italic = True
+        pp.font.color.rgb = DARK_TEXT
+        self._add_table(slide, df, Inches(0.6), Inches(1.7), Inches(12.1), Inches(5.0), max_rows=max_rows)
+
+    def slide_p95_fp_tp(self):
+        """Permintaan CTO: P95 per severity, rasio breach per insiden, False Positive teratas, Top 10 True Positive."""
+        p95 = self.report.get("sla_p95")
+        if p95 is not None and len(p95) > 0:
+            cols = [c for c in ["Severity", "Jumlah_Tiket", "P95_MTTR_menit", "Batas_MTTR_menit", "P95_MTTC_menit",
+                                "Batas_MTTC_menit", "P95_MTTRV_menit", "Batas_MTTRV_menit"] if c in p95.columns]
+            self._table_slide("P95 MTTR, MTTC, MTTRV per Severity",
+                              "P95 = 95% tiket selesai dalam waktu ini atau lebih cepat. Dihitung dari Logged, satuan menit. "
+                              "MTTC hanya tiket yang punya Contained On.", p95[cols])
+        flags = self.report.get("sla_ticket_flags")
+        if flags is not None and len(flags) > 0:
+            from core.sla import incident_breach_ratio
+            r = incident_breach_ratio(flags)
+            r = r[r["Tiket_Breach"] > 0].sort_values(["Tiket_Breach", "%_Breach"], ascending=False).head(12)
+            self._table_slide("Insiden dengan Breach Terbanyak vs Tiket Tidak Breach",
+                              "Total_Tiket = semua tiket insiden itu; Tiket_Tidak_Breach = selesai dalam batas SLA.", r)
+        fp = self.report.get("fp_by_rule")
+        s = self.report.get("fp_summary") or {}
+        if fp is not None and len(fp) > 0:
+            self._table_slide("False Positive per Rule (Terbanyak)",
+                              f"True Positive {s.get('tp')} ({s.get('pct_tp')}%) vs False Positive {s.get('fp')} ({s.get('pct_fp')}%). "
+                              "Target: True Positive lebih banyak dari False Positive.",
+                              fp.drop(columns=["Rekomendasi", "No"]).head(12))
+        top = self.report.get("tp_top_incidents")
+        if top is not None and len(top) > 0:
+            self._table_slide("Top 10 Insiden True Positive",
+                              "Sistem dan orang diambil dari isi Description alert; '-' bila tidak tercatat.",
+                              top[["Insiden", "Jumlah_TP", "Tahap_Kill_Chain", "Sistem_Terdampak", "Orang_Terkait"]], max_rows=10)
+
     def chapter_7_kpi_soc(self):
         kpi = self.report.get("soc_individual_kpi")
         if kpi is None or len(kpi) == 0:
@@ -707,6 +750,7 @@ class PPTXWriter:
         self.chapter_4_trend()
         self.chapter_5_efektivitas()
         self.slide_sla_matrix()
+        self.slide_p95_fp_tp()
         self.chapter_6_recurring()
         self.chapter_8_threat_profiling()
         self.chapter_7_kpi_soc()
